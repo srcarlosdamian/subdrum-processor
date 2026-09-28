@@ -43,6 +43,7 @@ target_sources(SubdrumProcessor
         Source/PluginEditor.cpp
         Source/PluginEditor.h
         Source/DSP/DrumSynth.h
+        Source/DSP/SamplePlayer.h
         Source/DSP/TapeSaturation.h
         Source/DSP/SamplerFilter.h
         Source/DSP/VCACompressor.h

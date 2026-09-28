@@ -26,6 +26,16 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     };
     addAndMakeVisible(presetComboBox);
 
+    // Load Sample Button Setup
+    loadSampleButton.setButtonText("+ LOAD WAV");
+    loadSampleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF14161A));
+    loadSampleButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEDEDF0));
+    loadSampleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFFF3B30));
+    loadSampleButton.setColour(juce::TextButton::textColourOnId, juce::Colour(0xFFFFFFFF));
+    loadSampleButton.setWantsKeyboardFocus(false);
+    loadSampleButton.onClick = [this]() { openSampleFileDialog(); };
+    addAndMakeVisible(loadSampleButton);
+
     // Row 1 Controls
     setupControl(driveKnob,       "drive",         "Drive");
     setupControl(tapeMixKnob,     "tapeMix",       "Mix");
@@ -74,6 +84,69 @@ SubdrumProcessorAudioProcessorEditor::~SubdrumProcessorAudioProcessorEditor()
 {
     removeKeyListener(this);
     setLookAndFeel(nullptr);
+}
+
+void SubdrumProcessorAudioProcessorEditor::openSampleFileDialog()
+{
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Select Drum Sample (.wav, .aif, .flac)",
+        juce::File::getSpecialLocation(juce::File::userHomeDirectory),
+        "*.wav;*.aif;*.aiff;*.flac;*.mp3;*.ogg");
+
+    auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+    fileChooser->launchAsync(flags, [this](const juce::FileChooser& chooser)
+    {
+        auto result = chooser.getResult();
+        if (result.existsAsFile())
+        {
+            if (audioProcessor.loadSampleFile(result))
+            {
+                triggerDrumVoice(36);
+                repaint();
+            }
+        }
+    });
+}
+
+bool SubdrumProcessorAudioProcessorEditor::isInterestedInFileDrag(const juce::StringArray& files)
+{
+    for (const auto& file : files)
+    {
+        juce::String ext = juce::File(file).getFileExtension().toLowerCase();
+        if (ext == ".wav" || ext == ".aif" || ext == ".aiff" || ext == ".flac" || ext == ".mp3" || ext == ".ogg")
+            return true;
+    }
+    return false;
+}
+
+void SubdrumProcessorAudioProcessorEditor::fileDragEnter(const juce::StringArray&, int, int)
+{
+    isDraggingFile = true;
+    repaint();
+}
+
+void SubdrumProcessorAudioProcessorEditor::fileDragExit(const juce::StringArray&)
+{
+    isDraggingFile = false;
+    repaint();
+}
+
+void SubdrumProcessorAudioProcessorEditor::filesDropped(const juce::StringArray& files, int, int)
+{
+    isDraggingFile = false;
+    for (const auto& file : files)
+    {
+        juce::File f(file);
+        if (f.existsAsFile() && isInterestedInFileDrag({ file }))
+        {
+            if (audioProcessor.loadSampleFile(f))
+            {
+                triggerDrumVoice(36);
+                repaint();
+                break;
+            }
+        }
+    }
 }
 
 void SubdrumProcessorAudioProcessorEditor::setupControl(RotaryControl& control, const juce::String& paramID,
@@ -267,7 +340,7 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
     // Label for Presets
     g.setColour(juce::Colour(0xFF101216));
     g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
-    g.drawText("PRESET:", getWidth() - 325, 22, 60, 24, juce::Justification::right);
+    g.drawText("PRESET:", getWidth() - 440, 22, 60, 24, juce::Justification::right);
 
     // 4. Upper Scope / Dot-Matrix Visualizer Screen Card
     auto screenBounds = juce::Rectangle<float>(20.0f, 66.0f, static_cast<float>(getWidth() - 40), 145.0f);
@@ -277,8 +350,14 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0xFFD2D5DC));
     g.drawRoundedRectangle(screenBounds, 12.0f, 1.2f);
 
+    // Sample Info Banner on top of the screen
+    g.setColour(juce::Colour(0xFF5A5E68));
+    g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
+    juce::String sampleText = "AUDIO SOURCE:  " + audioProcessor.getLoadedSampleFileName();
+    g.drawText(sampleText, screenBounds.getX() + 18, screenBounds.getY() + 8, screenBounds.getWidth() - 36, 18, juce::Justification::left);
+
     // Dashed Centerline
-    const float centerY = screenBounds.getCentreY();
+    const float centerY = screenBounds.getCentreY() + 6.0f;
     g.setColour(juce::Colour(0xFF787C86));
     for (float x = screenBounds.getX() + 15.0f; x < screenBounds.getRight() - 15.0f; x += 10.0f)
     {
@@ -308,7 +387,7 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
             const float yUp = centerY - (d * dotStepY) - 4.0f;
             const float yDown = centerY + (d * dotStepY) + 4.0f;
 
-            if (yUp >= screenBounds.getY() + 10.0f)
+            if (yUp >= screenBounds.getY() + 24.0f)
                 g.fillEllipse(colX, yUp - dotSize * 0.5f, dotSize, dotSize);
 
             if (yDown <= screenBounds.getBottom() - 10.0f)
@@ -325,6 +404,20 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
         }
     }
 
+    // Drag & Drop Active Overlay
+    if (isDraggingFile)
+    {
+        g.setColour(juce::Colour(0xF014161A));
+        g.fillRoundedRectangle(screenBounds, 12.0f);
+
+        g.setColour(juce::Colour(0xFFFF3B30));
+        g.drawRoundedRectangle(screenBounds.reduced(4.0f), 10.0f, 2.5f);
+
+        g.setColour(juce::Colour(0xFFFFFFFF));
+        g.setFont(juce::FontOptions(22.0f, juce::Font::bold));
+        g.drawText("DROP .WAV / AUDIO FILE HERE", screenBounds, juce::Justification::centred);
+    }
+
     // Bottom Pad Section Container Card
     auto bottomSection = juce::Rectangle<float>(20.0f, static_cast<float>(getHeight() - 130),
                                                 static_cast<float>(getWidth() - 40), 115.0f);
@@ -336,8 +429,9 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
 
 void SubdrumProcessorAudioProcessorEditor::resized()
 {
-    // Preset Selector in header
-    presetComboBox.setBounds(getWidth() - 255, 18, 235, 28);
+    // Preset Selector and Load WAV Button in header
+    presetComboBox.setBounds(getWidth() - 370, 18, 205, 28);
+    loadSampleButton.setBounds(getWidth() - 155, 18, 135, 28);
 
     const int knobsAreaTop = 222;
     const int rowHeight = 135;

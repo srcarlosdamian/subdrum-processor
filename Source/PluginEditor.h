@@ -85,7 +85,8 @@ public:
 
 class SubdrumProcessorAudioProcessorEditor : public juce::AudioProcessorEditor,
                                             public juce::Timer,
-                                            public juce::KeyListener
+                                            public juce::KeyListener,
+                                            public juce::FileDragAndDropTarget
 {
 public:
     explicit SubdrumProcessorAudioProcessorEditor(SubdrumProcessorAudioProcessor&);
@@ -98,8 +99,15 @@ public:
     bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) override;
     bool keyStateChanged(bool isKeyDown, juce::Component* originatingComponent) override;
 
+    // File Drag and Drop Support (Option A)
+    bool isInterestedInFileDrag(const juce::StringArray& files) override;
+    void fileDragEnter(const juce::StringArray& files, int x, int y) override;
+    void fileDragExit(const juce::StringArray& files) override;
+    void filesDropped(const juce::StringArray& files, int x, int y) override;
+
     void triggerDrumVoice(int noteNumber);
     void releaseDrumVoice(int noteNumber);
+    void openSampleFileDialog();
 
 private:
     struct RotaryControl
@@ -117,6 +125,11 @@ private:
 
     // Preset Selector UI
     juce::ComboBox presetComboBox;
+
+    // Sample Loader Button & File Chooser
+    juce::TextButton loadSampleButton;
+    std::unique_ptr<juce::FileChooser> fileChooser;
+    bool isDraggingFile { false };
 
     // Visualizer Bars Animation State
     static constexpr int numVisualizerCols = 32;

@@ -1,9 +1,11 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_dsp/juce_dsp.h>
 #include <map>
 #include <vector>
+#include "DSP/SamplePlayer.h"
 #include "DSP/DrumSynth.h"
 #include "DSP/TapeSaturation.h"
 #include "DSP/SamplerFilter.h"
@@ -55,6 +57,12 @@ public:
     juce::MidiKeyboardState& getKeyboardState() noexcept { return keyboardState; }
     float getGainReduction() const noexcept { return compressor.getGainReductionDb(); }
 
+    // Sample Engine (Drag & Drop .WAV / Audio Files)
+    bool loadSampleFile(const juce::File& file);
+    bool hasLoadedSample() const noexcept { return samplePlayer.hasSample(); }
+    juce::String getLoadedSampleFileName() const noexcept { return loadedSampleFileName; }
+    void triggerSample() noexcept { samplePlayer.trigger(); }
+
     // Real-time Visualizer Buffer (Lock-free FIFO for scope)
     static constexpr int visualizerBufferSize = 64;
     void getVisualizerData(float* destinationBuffer) noexcept
@@ -70,6 +78,8 @@ private:
 
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;
+    juce::AudioFormatManager formatManager;
+    juce::String loadedSampleFileName { "NONE (SYNTH ENGINE)" };
 
     std::vector<Preset> factoryPresets;
     int currentProgram { 0 };
@@ -79,6 +89,7 @@ private:
     int visualizerWriteIndex { 0 };
 
     // DSP Chain
+    underground::dsp::SamplePlayer samplePlayer;
     underground::dsp::DrumSynth drumSynth;
     underground::dsp::TapeSaturation tapeSaturation;
     underground::dsp::SamplerFilter samplerFilter;

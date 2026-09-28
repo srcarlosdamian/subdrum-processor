@@ -7,6 +7,8 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
+    formatManager.registerBasicFormats();
+
     driveParam         = apvts.getRawParameterValue("drive");
     tapeMixParam       = apvts.getRawParameterValue("tapeMix");
     cutoffParam        = apvts.getRawParameterValue("cutoff");
@@ -199,6 +201,24 @@ double SubdrumProcessorAudioProcessor::getTailLengthSeconds() const
     return 0.0;
 }
 
+bool SubdrumProcessorAudioProcessor::loadSampleFile(const juce::File& file)
+{
+    if (!file.existsAsFile())
+        return false;
+
+    std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
+    if (reader != nullptr)
+    {
+        juce::AudioBuffer<float> tempBuffer(static_cast<int>(reader->numChannels), static_cast<int>(reader->lengthInSamples));
+        reader->read(&tempBuffer, 0, static_cast<int>(reader->lengthInSamples), 0, true, true);
+
+        samplePlayer.loadSample(tempBuffer, reader->sampleRate);
+        loadedSampleFileName = file.getFileName();
+        return true;
+    }
+    return false;
+}
+
 void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     const juce::dsp::ProcessSpec spec {
@@ -207,6 +227,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
         static_cast<juce::uint32>(getTotalNumOutputChannels())
     };
 
+    samplePlayer.prepare(spec);
     drumSynth.prepare(spec);
     tapeSaturation.prepare(spec);
     samplerFilter.prepare(spec);
@@ -219,6 +240,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
 
 void SubdrumProcessorAudioProcessor::releaseResources()
 {
+    samplePlayer.reset();
     drumSynth.reset();
     tapeSaturation.reset();
     samplerFilter.reset();
@@ -254,8 +276,15 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     // 1. Process Virtual/Computer Keyboard MIDI messages
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
-    // 2. Synthesize internal drum hits directly into buffer
-    drumSynth.process(buffer, midiMessages);
+    // 2. Playback Real Audio Sample or Synthesizer Drum Voice
+    if (samplePlayer.hasSample())
+    {
+        samplePlayer.process(buffer, midiMessages);
+    }
+    else
+    {
+        drumSynth.process(buffer, midiMessages);
+    }
 
     // 3. Update DSP parameters atomically and lock-free
     tapeSaturation.setDrive(driveParam->load(std::memory_order_relaxed));
