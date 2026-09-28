@@ -24,18 +24,21 @@ public:
         hissFilters.resize(numChannels);
         rumbleFilters.resize(numChannels);
 
+        auto hissCoeffs = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 3500.0f, 0.8f);
+        auto rumbleCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 80.0f, 0.707f);
+
         for (size_t i = 0; i < numChannels; ++i)
         {
             // Hiss bandpass: 800Hz - 8000Hz
-            hissFilters[i].state = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 3500.0f, 0.8f);
+            hissFilters[i].coefficients = hissCoeffs;
             hissFilters[i].reset();
 
-            // Low frequency rumble: ~60Hz
-            rumbleFilters[i].state = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 80.0f, 0.707f);
+            // Low frequency rumble: ~80Hz
+            rumbleFilters[i].coefficients = rumbleCoeffs;
             rumbleFilters[i].reset();
         }
 
-        dustFilter.state = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 2500.0f, 1.5f);
+        dustFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 2500.0f, 1.5f);
         dustFilter.reset();
 
         noiseLevelSmoothed.reset(sampleRate, 0.05);

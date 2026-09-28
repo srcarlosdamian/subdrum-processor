@@ -32,9 +32,10 @@ public:
 
         // Prepare DC Blockers for each channel (high-pass at ~15 Hz)
         dcBlockers.resize(numChannels);
+        auto dcCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 15.0f);
         for (auto& dc : dcBlockers)
         {
-            dc.state = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 15.0f);
+            dc.coefficients = dcCoeffs;
             dc.reset();
         }
 
@@ -88,6 +89,8 @@ public:
         juce::dsp::AudioBlock<float> oversampledBlock = oversampling->processSamplesUp(inputBlock);
 
         const size_t oversampledNumSamples = oversampledBlock.getNumSamples();
+        const float currentDrive = driveSmoothed.getCurrentValue();
+        const float makeupCompensation = 1.0f / (1.0f + 0.35f * std::log10(1.0f + currentDrive));
 
         // 2. Process non-linear tape saturation on oversampled signal
         for (size_t channel = 0; channel < channels; ++channel)
@@ -97,26 +100,21 @@ public:
             for (size_t i = 0; i < oversampledNumSamples; ++i)
             {
                 const float x = channelData[i];
-                const float currentDrive = driveSmoothed.getCurrentValue();
 
                 // Apply drive
                 const float driven = x * currentDrive;
 
                 // Tape non-linear transfer function:
                 // Soft clipping + mild asymmetry generating 2nd harmonic (warmth) and 3rd/5th (magnetic compression)
-                // f(x) = tanh(x + 0.1 * x^2) - bias_comp
                 const float asymmetricInput = driven + 0.12f * (driven * driven) * (driven > 0.0f ? 1.0f : -1.0f);
                 const float saturated = std::tanh(asymmetricInput);
-
-                // Auto-level compensation based on drive to prevent massive volume spikes
-                const float makeupCompensation = 1.0f / (1.0f + 0.35f * std::log10(1.0f + currentDrive));
 
                 channelData[i] = saturated * makeupCompensation;
             }
         }
 
-        // Advance smoothing parameter once per frame
-        driveSmoothed.advance(static_cast<int>(numSamples));
+        // Advance smoothing parameter across the original block size
+        driveSmoothed.skip(static_cast<int>(numSamples));
 
         // 3. Downsample back to original rate with anti-aliasing reconstruction
         oversampling->processSamplesDown(outputBlock);
@@ -127,13 +125,13 @@ public:
             const float* inData = inputBlock.getChannelPointer(channel);
             float* outData = outputBlock.getChannelPointer(channel);
 
+            // Process DC blocker sample by sample
             if (channel < dcBlockers.size())
             {
-                // DC Filter processing
-                auto dcContext = juce::dsp::ProcessContextReplacing<float>(
-                    juce::dsp::AudioBlock<float>(&outData, 1, 0, numSamples)
-                );
-                dcBlockers[channel].process(dcContext);
+                for (size_t i = 0; i < numSamples; ++i)
+                {
+                    outData[i] = dcBlockers[channel].processSample(outData[i]);
+                }
             }
 
             // Mix dry and wet
