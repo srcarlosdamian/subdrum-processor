@@ -8,6 +8,24 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
 {
     setLookAndFeel(&industrialLookAndFeel);
 
+    // Preset Selector Setup
+    const auto& presets = audioProcessor.getPresets();
+    for (size_t i = 0; i < presets.size(); ++i)
+    {
+        presetComboBox.addItem(presets[i].name, static_cast<int>(i + 1));
+    }
+    presetComboBox.setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
+    presetComboBox.setWantsKeyboardFocus(false);
+    presetComboBox.onChange = [this]()
+    {
+        const int selectedIdx = presetComboBox.getSelectedId() - 1;
+        if (selectedIdx >= 0)
+        {
+            audioProcessor.setCurrentProgram(selectedIdx);
+        }
+    };
+    addAndMakeVisible(presetComboBox);
+
     // Row 1 Controls
     setupControl(driveKnob,       "drive",         "Drive");
     setupControl(tapeMixKnob,     "tapeMix",       "Mix");
@@ -251,6 +269,10 @@ void SubdrumProcessorAudioProcessorEditor::timerCallback()
         visualizerBarHeights[i] = visualizerBarHeights[i] * 0.72f + targetHeight * 0.28f;
     }
 
+    // Keep preset selector synced with processor
+    if (presetComboBox.getSelectedId() != audioProcessor.getCurrentProgram() + 1)
+        presetComboBox.setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
+
     repaint();
 }
 
@@ -273,17 +295,16 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
     // 3. Header Branding (Clean Brutalist Typography)
     g.setColour(juce::Colour(0xFF101216));
     g.setFont(juce::FontOptions(26.0f, juce::Font::bold));
-    g.drawText("Subdrum", 24, 12, 200, 26, juce::Justification::left);
+    g.drawText("Subdrum", 24, 12, 160, 26, juce::Justification::left);
 
     g.setColour(juce::Colour(0xFF7E828C));
     g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
-    g.drawText("Underground DSP", 24, 38, 250, 20, juce::Justification::left);
+    g.drawText("Underground DSP", 24, 38, 200, 20, juce::Justification::left);
 
-    // Performance Key Trigger Hint in header (No brand references)
-    g.setColour(juce::Colour(0xFF626670));
-    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    g.drawText("KEY TRIGGER: [A] Kick | [W] Rim | [S] Snare | [E] Clap | [T] Hat | [U] Open | [K] 808 | [Z/X] Octave",
-               getWidth() - 650, 18, 620, 18, juce::Justification::right);
+    // Label for Presets
+    g.setColour(juce::Colour(0xFF101216));
+    g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
+    g.drawText("PRESET:", getWidth() - 325, 22, 60, 24, juce::Justification::right);
 
     // 4. Upper Scope / Dot-Matrix Visualizer Screen Card
     auto screenBounds = juce::Rectangle<float>(20.0f, 66.0f, static_cast<float>(getWidth() - 40), 145.0f);
@@ -352,6 +373,9 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
 
 void SubdrumProcessorAudioProcessorEditor::resized()
 {
+    // Preset Selector in header
+    presetComboBox.setBounds(getWidth() - 255, 18, 235, 28);
+
     const int knobsAreaTop = 222;
     const int rowHeight = 135;
 

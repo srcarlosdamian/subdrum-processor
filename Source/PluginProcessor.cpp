@@ -23,9 +23,150 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
 
     for (auto& item : visualizerFifo)
         item.store(0.0f, std::memory_order_relaxed);
+
+    initFactoryPresets();
+    loadPreset(0); // Load default preset on startup
 }
 
 SubdrumProcessorAudioProcessor::~SubdrumProcessorAudioProcessor() = default;
+
+void SubdrumProcessorAudioProcessor::initFactoryPresets()
+{
+    factoryPresets = {
+        {
+            "01. Default Warm & Punchy",
+            {
+                { "drive", 8.0f },
+                { "tapeMix", 100.0f },
+                { "cutoff", 14500.0f },
+                { "resonance", 0.707f },
+                { "compThreshold", -14.0f },
+                { "compRatio", 4.0f },
+                { "compAttack", 4.0f },
+                { "compRelease", 55.0f },
+                { "compMakeup", 0.0f },
+                { "compMix", 100.0f },
+                { "vinylNoise", 0.0f },
+                { "vinylDust", 0.0f },
+                { "outputGain", 0.0f }
+            }
+        },
+        {
+            "02. 2-Step Underground Tape",
+            {
+                { "drive", 16.0f },
+                { "tapeMix", 100.0f },
+                { "cutoff", 12000.0f },
+                { "resonance", 1.25f },
+                { "compThreshold", -18.0f },
+                { "compRatio", 6.0f },
+                { "compAttack", 2.5f },
+                { "compRelease", 45.0f },
+                { "compMakeup", 3.0f },
+                { "compMix", 100.0f },
+                { "vinylNoise", 5.0f },
+                { "vinylDust", 20.0f },
+                { "outputGain", -1.0f }
+            }
+        },
+        {
+            "03. 90s Vintage Sampler Lo-Fi",
+            {
+                { "drive", 11.0f },
+                { "tapeMix", 95.0f },
+                { "cutoff", 8200.0f },
+                { "resonance", 2.4f },
+                { "compThreshold", -16.0f },
+                { "compRatio", 4.5f },
+                { "compAttack", 6.0f },
+                { "compRelease", 70.0f },
+                { "compMakeup", 2.0f },
+                { "compMix", 100.0f },
+                { "vinylNoise", 12.0f },
+                { "vinylDust", 35.0f },
+                { "outputGain", 0.0f }
+            }
+        },
+        {
+            "04. Heavy VCA Drum Glue",
+            {
+                { "drive", 7.0f },
+                { "tapeMix", 80.0f },
+                { "cutoff", 16500.0f },
+                { "resonance", 0.707f },
+                { "compThreshold", -22.0f },
+                { "compRatio", 8.0f },
+                { "compAttack", 1.2f },
+                { "compRelease", 35.0f },
+                { "compMakeup", 4.5f },
+                { "compMix", 85.0f },
+                { "vinylNoise", 0.0f },
+                { "vinylDust", 0.0f },
+                { "outputGain", -2.0f }
+            }
+        },
+        {
+            "05. Grimy Dust & Drive",
+            {
+                { "drive", 22.0f },
+                { "tapeMix", 100.0f },
+                { "cutoff", 9500.0f },
+                { "resonance", 1.8f },
+                { "compThreshold", -15.0f },
+                { "compRatio", 5.0f },
+                { "compAttack", 3.5f },
+                { "compRelease", 50.0f },
+                { "compMakeup", 2.5f },
+                { "compMix", 100.0f },
+                { "vinylNoise", 20.0f },
+                { "vinylDust", 50.0f },
+                { "outputGain", -1.5f }
+            }
+        }
+    };
+}
+
+void SubdrumProcessorAudioProcessor::loadPreset(int index)
+{
+    if (index >= 0 && index < static_cast<int>(factoryPresets.size()))
+    {
+        currentProgram = index;
+        const auto& preset = factoryPresets[index];
+
+        for (const auto& [paramId, value] : preset.params)
+        {
+            if (auto* param = apvts.getParameter(paramId))
+            {
+                const float normalized = param->getNormalisableRange().convertTo0to1(value);
+                param->setValueNotifyingHost(normalized);
+            }
+        }
+    }
+}
+
+int SubdrumProcessorAudioProcessor::getNumPrograms()
+{
+    return static_cast<int>(factoryPresets.size());
+}
+
+int SubdrumProcessorAudioProcessor::getCurrentProgram()
+{
+    return currentProgram;
+}
+
+void SubdrumProcessorAudioProcessor::setCurrentProgram(int index)
+{
+    loadPreset(index);
+}
+
+const juce::String SubdrumProcessorAudioProcessor::getProgramName(int index)
+{
+    if (index >= 0 && index < static_cast<int>(factoryPresets.size()))
+        return factoryPresets[index].name;
+    return {};
+}
+
+void SubdrumProcessorAudioProcessor::changeProgramName(int, const juce::String&) {}
 
 juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcessor::createParameterLayout()
 {
@@ -45,7 +186,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
     // 2. Sampler Lowpass Filter
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "cutoff", 1 }, "Filter",
-        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 14000.0f,
+        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 14500.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -84,7 +225,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
-    // 4. Vinyl & Dust Noise (Defaulted to 0% so plugin is 100% clean and silent upon loading)
+    // 4. Vinyl & Dust Noise
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "vinylNoise", 1 }, "Dust Hiss",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
@@ -128,25 +269,6 @@ double SubdrumProcessorAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
-
-int SubdrumProcessorAudioProcessor::getNumPrograms()
-{
-    return 1;
-}
-
-int SubdrumProcessorAudioProcessor::getCurrentProgram()
-{
-    return 0;
-}
-
-void SubdrumProcessorAudioProcessor::setCurrentProgram(int) {}
-
-const juce::String SubdrumProcessorAudioProcessor::getProgramName(int)
-{
-    return {};
-}
-
-void SubdrumProcessorAudioProcessor::changeProgramName(int, const juce::String&) {}
 
 void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {

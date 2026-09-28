@@ -2,6 +2,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include <map>
+#include <vector>
 #include "DSP/DrumSynth.h"
 #include "DSP/TapeSaturation.h"
 #include "DSP/SamplerFilter.h"
@@ -11,6 +13,12 @@
 class SubdrumProcessorAudioProcessor : public juce::AudioProcessor
 {
 public:
+    struct Preset
+    {
+        juce::String name;
+        std::map<juce::String, float> params;
+    };
+
     SubdrumProcessorAudioProcessor();
     ~SubdrumProcessorAudioProcessor() override;
 
@@ -31,11 +39,14 @@ public:
     bool isMidiEffect() const override;
     double getTailLengthSeconds() const override;
 
+    // Presets / Programs Management
     int getNumPrograms() override;
     int getCurrentProgram() override;
     void setCurrentProgram(int index) override;
     const juce::String getProgramName(int index) override;
     void changeProgramName(int index, const juce::String& newName) override;
+    void loadPreset(int index);
+    const std::vector<Preset>& getPresets() const noexcept { return factoryPresets; }
 
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
@@ -55,8 +66,13 @@ public:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
+    void initFactoryPresets();
+
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;
+
+    std::vector<Preset> factoryPresets;
+    int currentProgram { 0 };
 
     // Visualizer atomic ring buffer
     std::array<std::atomic<float>, visualizerBufferSize> visualizerFifo {};

@@ -17,6 +17,16 @@ public:
         setColour(juce::Slider::textBoxTextColourId, juce::Colour(0xFF14161A));
         setColour(juce::Slider::textBoxOutlineColourId, juce::Colour(0x00000000));
         setColour(juce::Label::textColourId, juce::Colour(0xFF14161A));
+
+        // Combo Box styling for presets
+        setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xFF14161A));
+        setColour(juce::ComboBox::textColourId, juce::Colour(0xFFEDEDF0));
+        setColour(juce::ComboBox::outlineColourId, juce::Colour(0xFF323640));
+        setColour(juce::ComboBox::arrowColourId, juce::Colour(0xFFFF3B30));
+        setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xFF14161A));
+        setColour(juce::PopupMenu::textColourId, juce::Colour(0xFFEDEDF0));
+        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xFFFF3B30));
+        setColour(juce::PopupMenu::highlightedTextColourId, juce::Colour(0xFFFFFFFF));
     }
 
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
@@ -102,9 +112,13 @@ private:
 
     void setupControl(RotaryControl& control, const juce::String& paramID, const juce::String& labelText);
     void setupPad(juce::TextButton& button, const juce::String& text, int note, juce::Colour baseColor, juce::Colour textCol);
+    void updatePresetSelector();
 
     SubdrumProcessorAudioProcessor& audioProcessor;
     IndustrialDotMatrixLookAndFeel industrialLookAndFeel;
+
+    // Preset Selector UI
+    juce::ComboBox presetComboBox;
 
     // Visualizer Bars Animation State
     static constexpr int numVisualizerCols = 32;
@@ -138,7 +152,6 @@ private:
     // Virtual MIDI Keyboard Component
     juce::MidiKeyboardComponent keyboardComponent;
 
-    // Current active octave offset
     int octaveOffset { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SubdrumProcessorAudioProcessorEditor)
