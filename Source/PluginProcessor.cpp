@@ -19,10 +19,10 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     // Snare / 2-Step Clap Parameters
     snareDecayParam    = apvts.getRawParameterValue("snareDecay");
     snareNoiseParam    = apvts.getRawParameterValue("snareNoise");
-    snareToneParam     = apvts.getRawParameterValue("snareTone");
-    snareBrightParam   = apvts.getRawParameterValue("snareBright");
+    snareSnapParam     = apvts.getRawParameterValue("snareSnap");
+    snareSizzleParam   = apvts.getRawParameterValue("snareSizzle");
     snareBodyParam     = apvts.getRawParameterValue("snareBody");
-    snareFlamParam     = apvts.getRawParameterValue("snareFlam");
+    snareBodyFreqParam = apvts.getRawParameterValue("snareBodyFreq");
 
     // Master DSP Parameters
     driveParam         = apvts.getRawParameterValue("drive");
@@ -54,23 +54,23 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
         {
             "uk_2step_default",
             {
-                { "kickTune", 62.0f },
-                { "kickSweep", 85.0f },
-                { "kickDecay", 75.0f },
-                { "kickPunch", 80.0f },
+                { "kickTune", 68.0f },
+                { "kickSweep", 77.0f },
+                { "kickDecay", 72.0f },
+                { "kickPunch", 75.0f },
                 { "kickDrive", 50.0f },
 
-                { "snareDecay", 45.0f },
+                { "snareDecay", 270.0f },
                 { "snareNoise", 90.0f },
-                { "snareTone", 7500.0f },
-                { "snareBright", 6200.0f },
-                { "snareBody", 0.0f },
-                { "snareFlam", 7.5f },
+                { "snareSnap", 85.0f },
+                { "snareSizzle", 9800.0f },
+                { "snareBody", 70.0f },
+                { "snareBodyFreq", 150.0f },
 
                 { "drive", 12.0f },
                 { "tapeMix", 100.0f },
-                { "cutoff", 6500.0f },
-                { "resonance", 1.15f },
+                { "cutoff", 18000.0f },
+                { "resonance", 1.0f },
                 { "compThreshold", -14.0f },
                 { "compRatio", 4.0f },
                 { "compAttack", 1.5f },
@@ -134,22 +134,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
     // --- 1. KICK ENGINE PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "kickTune", 1 }, "Kick Tune",
-        juce::NormalisableRange<float>(45.0f, 95.0f, 0.5f), 62.0f,
+        juce::NormalisableRange<float>(40.0f, 100.0f, 0.5f), 68.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "kickSweep", 1 }, "Pitch Drop",
-        juce::NormalisableRange<float>(20.0f, 200.0f, 1.0f), 85.0f,
+        juce::NormalisableRange<float>(0.0f, 200.0f, 1.0f), 77.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "kickDecay", 1 }, "Kick Decay",
-        juce::NormalisableRange<float>(30.0f, 300.0f, 1.0f), 75.0f,
+        juce::NormalisableRange<float>(20.0f, 250.0f, 1.0f), 72.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "kickPunch", 1 }, "Punch Click",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 80.0f,
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 75.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -160,33 +160,33 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
     // --- 2. 2-STEP SNARE / CLAP PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "snareDecay", 1 }, "Snare Decay",
-        juce::NormalisableRange<float>(15.0f, 250.0f, 1.0f, 0.4f), 45.0f,
+        juce::NormalisableRange<float>(50.0f, 600.0f, 1.0f, 0.4f), 270.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "snareNoise", 1 }, "Noise Level",
+        juce::ParameterID { "snareNoise", 1 }, "Noise Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 90.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "snareTone", 1 }, "Noise Tone",
-        juce::NormalisableRange<float>(1000.0f, 15000.0f, 10.0f, 0.35f), 7500.0f,
-        juce::AudioParameterFloatAttributes().withLabel("Hz")));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "snareBright", 1 }, "Brightness",
-        juce::NormalisableRange<float>(2000.0f, 16000.0f, 10.0f, 0.35f), 6200.0f,
-        juce::AudioParameterFloatAttributes().withLabel("Hz")));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "snareBody", 1 }, "Wood Tone",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::ParameterID { "snareSnap", 1 }, "Crack Snap",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 85.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "snareFlam", 1 }, "Clap Flam",
-        juce::NormalisableRange<float>(0.0f, 20.0f, 0.1f), 7.5f,
-        juce::AudioParameterFloatAttributes().withLabel("ms")));
+        juce::ParameterID { "snareSizzle", 1 }, "Air Sizzle",
+        juce::NormalisableRange<float>(4000.0f, 16000.0f, 10.0f, 0.35f), 9800.0f,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "snareBody", 1 }, "Body Punch",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 70.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "snareBodyFreq", 1 }, "Body Tone",
+        juce::NormalisableRange<float>(80.0f, 300.0f, 1.0f), 150.0f,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     // --- 3. MASTER DSP PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -201,12 +201,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "cutoff", 1 }, "Master Filter",
-        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 6500.0f,
+        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 18000.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "resonance", 1 }, "Resonance",
-        juce::NormalisableRange<float>(0.1f, 6.0f, 0.05f), 1.15f,
+        juce::NormalisableRange<float>(0.1f, 6.0f, 0.05f), 1.0f,
         juce::AudioParameterFloatAttributes().withLabel("Q")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -380,10 +380,10 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
 
     drumSynth.setSnareDecay(snareDecayParam->load(std::memory_order_relaxed));
     drumSynth.setSnareNoiseLevel(snareNoiseParam->load(std::memory_order_relaxed) * 0.01f);
-    drumSynth.setSnareNoiseTone(snareToneParam->load(std::memory_order_relaxed));
-    drumSynth.setSnareBrightness(snareBrightParam->load(std::memory_order_relaxed));
+    drumSynth.setSnareSnapLevel(snareSnapParam->load(std::memory_order_relaxed) * 0.01f);
+    drumSynth.setSnareSizzleFreq(snareSizzleParam->load(std::memory_order_relaxed));
     drumSynth.setSnareBodyLevel(snareBodyParam->load(std::memory_order_relaxed) * 0.01f);
-    drumSynth.setSnareFlam(snareFlamParam->load(std::memory_order_relaxed));
+    drumSynth.setSnareBodyTune(snareBodyFreqParam->load(std::memory_order_relaxed));
 
     // 4. Synthesize Internal Drum Voices directly
     drumSynth.process(buffer, midiMessages);

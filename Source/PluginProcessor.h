@@ -112,10 +112,10 @@ private:
     // Snare / 2-Step Clap Engine Parameter Pointers
     std::atomic<float>* snareDecayParam { nullptr };
     std::atomic<float>* snareNoiseParam { nullptr };
-    std::atomic<float>* snareToneParam { nullptr };
-    std::atomic<float>* snareBrightParam { nullptr };
+    std::atomic<float>* snareSnapParam { nullptr };
+    std::atomic<float>* snareSizzleParam { nullptr };
     std::atomic<float>* snareBodyParam { nullptr };
-    std::atomic<float>* snareFlamParam { nullptr };
+    std::atomic<float>* snareBodyFreqParam { nullptr };
 
     // Master DSP Parameter Pointers
     std::atomic<float>* driveParam { nullptr };

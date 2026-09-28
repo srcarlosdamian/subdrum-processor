@@ -148,10 +148,10 @@ private:
     // TAB 2: SNARE / 2-STEP CLAP CONTROLS
     RotaryControl snareDecayKnob;
     RotaryControl snareNoiseKnob;
-    RotaryControl snareToneKnob;
-    RotaryControl snareBrightKnob;
+    RotaryControl snareSnapKnob;
+    RotaryControl snareSizzleKnob;
     RotaryControl snareBodyKnob;
-    RotaryControl snareFlamKnob;
+    RotaryControl snareBodyFreqKnob;
 
     // TAB 3: MASTER DSP CONTROLS
     RotaryControl driveKnob;
