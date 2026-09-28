@@ -12,6 +12,7 @@
 #include "DSP/SamplerFilter.h"
 #include "DSP/VCACompressor.h"
 #include "DSP/VinylNoise.h"
+#include "DSP/TapeEcho.h"
 
 class SubdrumProcessorAudioProcessor : public juce::AudioProcessor
 {
@@ -99,10 +100,12 @@ private:
     underground::dsp::TapeSaturation tapeSaturation;
     underground::dsp::SamplerFilter samplerFilter;
     underground::dsp::VCACompressor compressor;
+    underground::dsp::TapeEcho tapeEcho;
     underground::dsp::VinylNoise vinylNoise;
     juce::dsp::Gain<float> outputGain;
 
     // Kick Engine Parameter Pointers
+    std::atomic<float>* kickPitchParam { nullptr };
     std::atomic<float>* kickTuneParam { nullptr };
     std::atomic<float>* kickSweepParam { nullptr };
     std::atomic<float>* kickDecayParam { nullptr };
@@ -110,6 +113,7 @@ private:
     std::atomic<float>* kickDriveParam { nullptr };
 
     // Snare / 2-Step Clap Engine Parameter Pointers
+    std::atomic<float>* snarePitchParam { nullptr };
     std::atomic<float>* snareDecayParam { nullptr };
     std::atomic<float>* snareNoiseParam { nullptr };
     std::atomic<float>* snareSnapParam { nullptr };
@@ -117,7 +121,10 @@ private:
     std::atomic<float>* snareBodyParam { nullptr };
     std::atomic<float>* snareBodyFreqParam { nullptr };
 
-    // Master DSP Parameter Pointers
+    // Master DSP & Dub Echo Parameter Pointers
+    std::atomic<float>* echoTimeParam { nullptr };
+    std::atomic<float>* echoFeedbackParam { nullptr };
+    std::atomic<float>* echoMixParam { nullptr };
     std::atomic<float>* driveParam { nullptr };
     std::atomic<float>* tapeMixParam { nullptr };
     std::atomic<float>* cutoffParam { nullptr };

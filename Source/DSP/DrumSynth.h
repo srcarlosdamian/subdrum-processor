@@ -10,8 +10,8 @@ namespace underground::dsp
 
 /**
  * @brief Authentic UK 2-Step / Underground Drum Synthesizer:
- *        - Sound 1 (KICK): Deep analog sub-bass, tight pitch drop, punch click beater, saturation.
- *        - Sound 2 (SNARE): Calibrated 0.27s UK garage snare/clap with punchy body, 4.5kHz crack, and 9.8kHz sizzle tail.
+ *        - Sound 1 (KICK): Deep analog sub-bass, pitch drop, punch click beater, saturation, and Sampler Pitch Drop (Varispeed).
+ *        - Sound 2 (SNARE): Calibrated UK garage snare/clap with punchy body, 4.5kHz crack, 9.8kHz sizzle, and Sampler Pitch Drop (Varispeed).
  */
 class DrumSynth
 {
@@ -67,6 +67,7 @@ public:
     }
 
     // --- Kick Parameter Setters ---
+    void setKickPitchSemi(float semi) noexcept { kickPitchSemi.store(semi, std::memory_order_relaxed); }
     void setKickTune(float hz) noexcept { kickBaseFreq.store(hz, std::memory_order_relaxed); }
     void setKickPitchSweep(float hz) noexcept { kickSweepDepth.store(hz, std::memory_order_relaxed); }
     void setKickDecay(float ms) noexcept { kickDecayMs.store(ms, std::memory_order_relaxed); }
@@ -74,6 +75,7 @@ public:
     void setKickDrive(float driveNorm) noexcept { kickDriveAmount.store(driveNorm, std::memory_order_relaxed); }
 
     // --- Snare Parameter Setters ---
+    void setSnarePitchSemi(float semi) noexcept { snarePitchSemi.store(semi, std::memory_order_relaxed); }
     void setSnareDecay(float ms) noexcept { snareDecayMs.store(ms, std::memory_order_relaxed); }
     void setSnareNoiseLevel(float norm) noexcept { snareNoiseLevel.store(norm, std::memory_order_relaxed); }
     void setSnareSnapLevel(float norm) noexcept { snareSnapLevel.store(norm, std::memory_order_relaxed); }
@@ -125,24 +127,34 @@ public:
         const float twoPi = juce::MathConstants<float>::twoPi;
         const float samplePeriod = 1.0f / static_cast<float>(sampleRate);
 
-        // Dynamic Kick Coefficients (Preserving exact tight punch factor 0.45)
-        const float kDecaySec = (kickDecayMs.load(std::memory_order_relaxed) * 0.001f) * 0.45f;
-        const float kickDecayCoef = std::exp(-1.0f / (juce::jmax(0.005f, kDecaySec) * static_cast<float>(sampleRate)));
-        const float pitchDecayCoef = std::exp(-1.0f / (0.016f * static_cast<float>(sampleRate)));
-        const float beaterDecayCoef = std::exp(-1.0f / (0.006f * static_cast<float>(sampleRate)));
+        // Varispeed Sampler Pitch Ratios: R = 2^(semitones / 12)
+        // Dropping pitch slows down decay time (1 / R) just like classic Akai/E-MU samplers!
+        const float kSemi = kickPitchSemi.load(std::memory_order_relaxed);
+        const float kPitchRatio = std::pow(2.0f, kSemi / 12.0f);
+        const float kSpeedFactor = 1.0f / juce::jmax(0.2f, kPitchRatio);
 
-        const float kBase = kickBaseFreq.load(std::memory_order_relaxed);
-        const float kSweep = kickSweepDepth.load(std::memory_order_relaxed);
+        const float sSemi = snarePitchSemi.load(std::memory_order_relaxed);
+        const float sPitchRatio = std::pow(2.0f, sSemi / 12.0f);
+        const float sSpeedFactor = 1.0f / juce::jmax(0.2f, sPitchRatio);
+
+        // Dynamic Kick Coefficients
+        const float kDecaySec = (kickDecayMs.load(std::memory_order_relaxed) * 0.001f) * 0.45f * kSpeedFactor;
+        const float kickDecayCoef = std::exp(-1.0f / (juce::jmax(0.005f, kDecaySec) * static_cast<float>(sampleRate)));
+        const float pitchDecayCoef = std::exp(-1.0f / ((0.016f * kSpeedFactor) * static_cast<float>(sampleRate)));
+        const float beaterDecayCoef = std::exp(-1.0f / ((0.006f * kSpeedFactor) * static_cast<float>(sampleRate)));
+
+        const float kBase = kickBaseFreq.load(std::memory_order_relaxed) * kPitchRatio;
+        const float kSweep = kickSweepDepth.load(std::memory_order_relaxed) * kPitchRatio;
         const float kDriveFactor = 1.2f + 0.8f * kickDriveAmount.load(std::memory_order_relaxed);
 
-        // Dynamic Snare Coefficients (Preserving exact 0.27s Spectrogram ratio)
-        const float sDecayMs = snareDecayMs.load(std::memory_order_relaxed);
+        // Dynamic Snare Coefficients
+        const float sDecayMs = snareDecayMs.load(std::memory_order_relaxed) * sSpeedFactor;
         const float snareBodyDecayCoef = std::exp(-1.0f / (juce::jmax(0.01f, sDecayMs * 0.001f * 0.45f) * static_cast<float>(sampleRate)));
-        const float snarePitchDecayCoef = std::exp(-1.0f / (0.022f * static_cast<float>(sampleRate)));
+        const float snarePitchDecayCoef = std::exp(-1.0f / ((0.022f * sSpeedFactor) * static_cast<float>(sampleRate)));
         const float snareNoiseDecayCoef = std::exp(-1.0f / (juce::jmax(0.01f, sDecayMs * 0.001f * 0.50f) * static_cast<float>(sampleRate)));
-        const float snareSnapDecayCoef = std::exp(-1.0f / (0.012f * static_cast<float>(sampleRate)));
+        const float snareSnapDecayCoef = std::exp(-1.0f / ((0.012f * sSpeedFactor) * static_cast<float>(sampleRate)));
 
-        const float sBodyBase = snareBodyFreq.load(std::memory_order_relaxed);
+        const float sBodyBase = snareBodyFreq.load(std::memory_order_relaxed) * sPitchRatio;
 
         for (int sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx)
         {
@@ -154,7 +166,7 @@ public:
 
             float synthSample = 0.0f;
 
-            // 1. Kick Voice (Sound 1 - Deep Analog Sub + Punch Click)
+            // 1. Kick Voice (Sound 1 - Deep Analog Sub + Punch Click + Sampler Pitching)
             if (kickEnv > 1.0e-4f)
             {
                 const float kickFreq = kBase + kSweep * (kickPitchEnv * kickPitchEnv);
@@ -184,19 +196,19 @@ public:
                 kickPitchEnv *= pitchDecayCoef;
             }
 
-            // 2. Snare Voice (Sound 2 - 0.27s Spectrogram Profile)
+            // 2. Snare Voice (Sound 2 - 0.27s Spectrogram Profile + Sampler Pitching)
             if (snareEnv > 1.0e-4f || snareNoiseEnv > 1.0e-4f || snareSnapEnv > 1.0e-3f)
             {
-                // Low fundamental tone (150Hz decaying over body)
-                const float snareFreq = sBodyBase + 95.0f * (snarePitchEnv * snarePitchEnv);
+                // Low fundamental tone (pitched according to varispeed sampler)
+                const float snareFreq = sBodyBase + (95.0f * sPitchRatio) * (snarePitchEnv * snarePitchEnv);
                 const float fund = std::sin(snarePhase);
                 const float filteredBody = snareBodyFilter.processSample(std::tanh(fund * snareEnv * 1.8f));
 
-                // 8kHz - 14kHz Sustained Noise Tail (Sizzle & Hiss)
+                // Sustained Noise Tail
                 const float noise = nextRandomFloat() * 2.0f - 1.0f;
                 const float sizzleNoise = snareSizzleFilter.processSample(noise) * snareNoiseEnv * 1.15f;
 
-                // Initial attack crack (4.5kHz burst in first 15ms)
+                // Initial attack crack
                 float crack = 0.0f;
                 if (snareSnapEnv > 1.0e-3f)
                 {
@@ -239,6 +251,7 @@ private:
     uint32_t rngState { 0x98765432 };
 
     // Kick State & Parameters
+    std::atomic<float> kickPitchSemi { 0.0f }; // -24 to +12 semitones
     std::atomic<float> kickBaseFreq { 68.0f };
     std::atomic<float> kickSweepDepth { 77.0f };
     std::atomic<float> kickDecayMs { 72.0f };
@@ -255,6 +268,7 @@ private:
     juce::dsp::IIR::Filter<float> kickBodyFilter;
 
     // Snare State & Parameters
+    std::atomic<float> snarePitchSemi { 0.0f }; // -24 to +12 semitones
     std::atomic<float> snareDecayMs { 270.0f };
     std::atomic<float> snareNoiseLevel { 0.90f };
     std::atomic<float> snareSnapLevel { 0.85f };

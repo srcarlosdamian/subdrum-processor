@@ -10,6 +10,7 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     formatManager.registerBasicFormats();
 
     // Kick Parameters
+    kickPitchParam     = apvts.getRawParameterValue("kickPitch");
     kickTuneParam      = apvts.getRawParameterValue("kickTune");
     kickSweepParam     = apvts.getRawParameterValue("kickSweep");
     kickDecayParam     = apvts.getRawParameterValue("kickDecay");
@@ -17,6 +18,7 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     kickDriveParam     = apvts.getRawParameterValue("kickDrive");
 
     // Snare / 2-Step Clap Parameters
+    snarePitchParam    = apvts.getRawParameterValue("snarePitch");
     snareDecayParam    = apvts.getRawParameterValue("snareDecay");
     snareNoiseParam    = apvts.getRawParameterValue("snareNoise");
     snareSnapParam     = apvts.getRawParameterValue("snareSnap");
@@ -24,7 +26,10 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     snareBodyParam     = apvts.getRawParameterValue("snareBody");
     snareBodyFreqParam = apvts.getRawParameterValue("snareBodyFreq");
 
-    // Master DSP Parameters
+    // Master DSP & Dub Echo Parameters
+    echoTimeParam      = apvts.getRawParameterValue("echoTime");
+    echoFeedbackParam  = apvts.getRawParameterValue("echoFeedback");
+    echoMixParam       = apvts.getRawParameterValue("echoMix");
     driveParam         = apvts.getRawParameterValue("drive");
     tapeMixParam       = apvts.getRawParameterValue("tapeMix");
     cutoffParam        = apvts.getRawParameterValue("cutoff");
@@ -54,18 +59,24 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
         {
             "uk_2step_default",
             {
+                { "kickPitch", 0.0f },
                 { "kickTune", 68.0f },
                 { "kickSweep", 77.0f },
                 { "kickDecay", 72.0f },
                 { "kickPunch", 75.0f },
                 { "kickDrive", 50.0f },
 
+                { "snarePitch", 0.0f },
                 { "snareDecay", 270.0f },
                 { "snareNoise", 90.0f },
                 { "snareSnap", 85.0f },
                 { "snareSizzle", 9800.0f },
                 { "snareBody", 70.0f },
                 { "snareBodyFreq", 150.0f },
+
+                { "echoTime", 260.0f },
+                { "echoFeedback", 40.0f },
+                { "echoMix", 18.0f },
 
                 { "drive", 12.0f },
                 { "tapeMix", 100.0f },
@@ -133,6 +144,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
 
     // --- 1. KICK ENGINE PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "kickPitch", 1 }, "Kick Pitch",
+        juce::NormalisableRange<float>(-24.0f, 12.0f, 1.0f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("st")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "kickTune", 1 }, "Kick Tune",
         juce::NormalisableRange<float>(40.0f, 100.0f, 0.5f), 68.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
@@ -158,6 +174,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // --- 2. 2-STEP SNARE / CLAP PARAMETERS ---
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "snarePitch", 1 }, "Snare Pitch",
+        juce::NormalisableRange<float>(-24.0f, 12.0f, 1.0f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("st")));
+
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "snareDecay", 1 }, "Snare Decay",
         juce::NormalisableRange<float>(50.0f, 600.0f, 1.0f, 0.4f), 270.0f,
@@ -188,7 +209,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
         juce::NormalisableRange<float>(80.0f, 300.0f, 1.0f), 150.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
-    // --- 3. MASTER DSP PARAMETERS ---
+    // --- 3. MASTER DSP & DUB ECHO PARAMETERS ---
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "echoMix", 1 }, "Dub Echo Mix",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 18.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "echoTime", 1 }, "Echo Time",
+        juce::NormalisableRange<float>(40.0f, 800.0f, 1.0f), 260.0f,
+        juce::AudioParameterFloatAttributes().withLabel("ms")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "echoFeedback", 1 }, "Echo Feedback",
+        juce::NormalisableRange<float>(0.0f, 85.0f, 0.1f), 40.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "drive", 1 }, "Drive",
         juce::NormalisableRange<float>(0.0f, 30.0f, 0.1f), 12.0f,
@@ -314,6 +350,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
     tapeSaturation.prepare(spec);
     samplerFilter.prepare(spec);
     compressor.prepare(spec);
+    tapeEcho.prepare(spec);
     vinylNoise.prepare(spec);
 
     outputGain.prepare(spec);
@@ -328,6 +365,7 @@ void SubdrumProcessorAudioProcessor::releaseResources()
     tapeSaturation.reset();
     samplerFilter.reset();
     compressor.reset();
+    tapeEcho.reset();
     vinylNoise.reset();
 }
 
@@ -372,12 +410,14 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
     // 3. Update Drum Synth Parameters for Kick & Snare
+    drumSynth.setKickPitchSemi(kickPitchParam->load(std::memory_order_relaxed));
     drumSynth.setKickTune(kickTuneParam->load(std::memory_order_relaxed));
     drumSynth.setKickPitchSweep(kickSweepParam->load(std::memory_order_relaxed));
     drumSynth.setKickDecay(kickDecayParam->load(std::memory_order_relaxed));
     drumSynth.setKickPunch(kickPunchParam->load(std::memory_order_relaxed) * 0.01f);
     drumSynth.setKickDrive(kickDriveParam->load(std::memory_order_relaxed) * 0.01f);
 
+    drumSynth.setSnarePitchSemi(snarePitchParam->load(std::memory_order_relaxed));
     drumSynth.setSnareDecay(snareDecayParam->load(std::memory_order_relaxed));
     drumSynth.setSnareNoiseLevel(snareNoiseParam->load(std::memory_order_relaxed) * 0.01f);
     drumSynth.setSnareSnapLevel(snareSnapParam->load(std::memory_order_relaxed) * 0.01f);
@@ -388,7 +428,7 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     // 4. Synthesize Internal Drum Voices directly
     drumSynth.process(buffer, midiMessages);
 
-    // 3. Update DSP parameters atomically and lock-free
+    // 5. Update DSP parameters atomically and lock-free
     tapeSaturation.setDrive(driveParam->load(std::memory_order_relaxed));
     tapeSaturation.setMix(tapeMixParam->load(std::memory_order_relaxed) * 0.01f);
 
@@ -402,18 +442,23 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     compressor.setMakeupGain(compMakeupParam->load(std::memory_order_relaxed));
     compressor.setMix(compMixParam->load(std::memory_order_relaxed) * 0.01f);
 
+    tapeEcho.setTime(echoTimeParam->load(std::memory_order_relaxed));
+    tapeEcho.setFeedback(echoFeedbackParam->load(std::memory_order_relaxed) * 0.01f);
+    tapeEcho.setMix(echoMixParam->load(std::memory_order_relaxed) * 0.01f);
+
     vinylNoise.setAmount(vinylNoiseParam->load(std::memory_order_relaxed) * 0.01f);
     vinylNoise.setDustDensity(vinylDustParam->load(std::memory_order_relaxed) * 0.01f);
 
     outputGain.setGainDecibels(outputGainParam->load(std::memory_order_relaxed));
 
-    // 4. Sequential DSP Pipeline
+    // 6. Sequential DSP Pipeline
     juce::dsp::AudioBlock<float> audioBlock(buffer);
     juce::dsp::ProcessContextReplacing<float> context(audioBlock);
 
     tapeSaturation.process(context);
     samplerFilter.process(context);
     compressor.process(context);
+    tapeEcho.process(context);
     vinylNoise.process(context);
     outputGain.process(context);
 

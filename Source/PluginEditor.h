@@ -139,6 +139,7 @@ private:
     SoundTab activeTab { SoundTab::Kick };
 
     // TAB 1: KICK CONTROLS
+    RotaryControl kickPitchKnob;
     RotaryControl kickTuneKnob;
     RotaryControl kickSweepKnob;
     RotaryControl kickDecayKnob;
@@ -146,19 +147,19 @@ private:
     RotaryControl kickDriveKnob;
 
     // TAB 2: SNARE / 2-STEP CLAP CONTROLS
+    RotaryControl snarePitchKnob;
     RotaryControl snareDecayKnob;
     RotaryControl snareNoiseKnob;
     RotaryControl snareSnapKnob;
     RotaryControl snareSizzleKnob;
     RotaryControl snareBodyKnob;
-    RotaryControl snareBodyFreqKnob;
 
-    // TAB 3: MASTER DSP CONTROLS
+    // TAB 3: MASTER DSP & DUB ECHO CONTROLS
+    RotaryControl echoMixKnob;
+    RotaryControl echoTimeKnob;
     RotaryControl driveKnob;
     RotaryControl cutoffKnob;
-    RotaryControl resonanceKnob;
     RotaryControl compThreshKnob;
-    RotaryControl compAttackKnob;
     RotaryControl outputGainKnob;
 
     // TR-808 Style Step Sequencer UI Components

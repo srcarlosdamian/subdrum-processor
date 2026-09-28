@@ -38,27 +38,28 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     setupTabBtn(snareTabButton,  "2. 2-STEP CLAP",  SoundTab::SnareClap);
     setupTabBtn(masterTabButton, "3. MASTER DSP",   SoundTab::MasterDSP);
 
-    // 1. KICK CONTROLS
+    // 1. KICK CONTROLS (6 Knobs)
+    setupControl(kickPitchKnob, "kickPitch", "Pitch (st)");
     setupControl(kickTuneKnob,  "kickTune",  "Tune (Hz)");
     setupControl(kickSweepKnob, "kickSweep", "Pitch Drop");
     setupControl(kickDecayKnob, "kickDecay", "Decay (ms)");
     setupControl(kickPunchKnob, "kickPunch", "Punch Click");
     setupControl(kickDriveKnob, "kickDrive", "Overdrive");
 
-    // 2. SNARE / CLAP CONTROLS
-    setupControl(snareDecayKnob,    "snareDecay",    "Decay (ms)");
-    setupControl(snareNoiseKnob,    "snareNoise",    "Noise Mix");
-    setupControl(snareSnapKnob,     "snareSnap",     "Crack Snap");
-    setupControl(snareSizzleKnob,   "snareSizzle",   "Air Sizzle");
-    setupControl(snareBodyKnob,     "snareBody",     "Body Punch");
-    setupControl(snareBodyFreqKnob, "snareBodyFreq", "Body Tune");
+    // 2. SNARE / CLAP CONTROLS (6 Knobs)
+    setupControl(snarePitchKnob,  "snarePitch",  "Pitch (st)");
+    setupControl(snareDecayKnob,  "snareDecay",  "Decay (ms)");
+    setupControl(snareNoiseKnob,  "snareNoise",  "Noise Mix");
+    setupControl(snareSnapKnob,   "snareSnap",   "Crack Snap");
+    setupControl(snareSizzleKnob, "snareSizzle", "Air Sizzle");
+    setupControl(snareBodyKnob,   "snareBody",   "Body Punch");
 
-    // 3. MASTER DSP CONTROLS
+    // 3. MASTER DSP & DUB ECHO CONTROLS (6 Knobs)
+    setupControl(echoMixKnob,     "echoMix",       "Dub Echo");
+    setupControl(echoTimeKnob,    "echoTime",      "Echo Time");
     setupControl(driveKnob,       "drive",         "Tape Drive");
     setupControl(cutoffKnob,      "cutoff",        "Master Cutoff");
-    setupControl(resonanceKnob,   "resonance",     "Resonance");
     setupControl(compThreshKnob,  "compThreshold", "Comp Thresh");
-    setupControl(compAttackKnob,  "compAttack",    "Comp Attack");
     setupControl(outputGainKnob,  "outputGain",    "Master Gain");
 
     // TR-808 Sequencer Transport Setup
@@ -201,26 +202,27 @@ void SubdrumProcessorAudioProcessorEditor::setActiveTab(SoundTab tab)
 
     // Toggle Visibility of Knob Groups
     const bool isKick = (activeTab == SoundTab::Kick);
-    kickTuneKnob.slider.setVisible(isKick);   kickTuneKnob.label.setVisible(isKick);
-    kickSweepKnob.slider.setVisible(isKick);  kickSweepKnob.label.setVisible(isKick);
-    kickDecayKnob.slider.setVisible(isKick);  kickDecayKnob.label.setVisible(isKick);
-    kickPunchKnob.slider.setVisible(isKick);  kickPunchKnob.label.setVisible(isKick);
-    kickDriveKnob.slider.setVisible(isKick);  kickDriveKnob.label.setVisible(isKick);
+    kickPitchKnob.slider.setVisible(isKick);   kickPitchKnob.label.setVisible(isKick);
+    kickTuneKnob.slider.setVisible(isKick);    kickTuneKnob.label.setVisible(isKick);
+    kickSweepKnob.slider.setVisible(isKick);   kickSweepKnob.label.setVisible(isKick);
+    kickDecayKnob.slider.setVisible(isKick);   kickDecayKnob.label.setVisible(isKick);
+    kickPunchKnob.slider.setVisible(isKick);   kickPunchKnob.label.setVisible(isKick);
+    kickDriveKnob.slider.setVisible(isKick);   kickDriveKnob.label.setVisible(isKick);
 
     const bool isSnare = (activeTab == SoundTab::SnareClap);
-    snareDecayKnob.slider.setVisible(isSnare);     snareDecayKnob.label.setVisible(isSnare);
-    snareNoiseKnob.slider.setVisible(isSnare);     snareNoiseKnob.label.setVisible(isSnare);
-    snareSnapKnob.slider.setVisible(isSnare);      snareSnapKnob.label.setVisible(isSnare);
-    snareSizzleKnob.slider.setVisible(isSnare);    snareSizzleKnob.label.setVisible(isSnare);
-    snareBodyKnob.slider.setVisible(isSnare);      snareBodyKnob.label.setVisible(isSnare);
-    snareBodyFreqKnob.slider.setVisible(isSnare);  snareBodyFreqKnob.label.setVisible(isSnare);
+    snarePitchKnob.slider.setVisible(isSnare);   snarePitchKnob.label.setVisible(isSnare);
+    snareDecayKnob.slider.setVisible(isSnare);   snareDecayKnob.label.setVisible(isSnare);
+    snareNoiseKnob.slider.setVisible(isSnare);   snareNoiseKnob.label.setVisible(isSnare);
+    snareSnapKnob.slider.setVisible(isSnare);    snareSnapKnob.label.setVisible(isSnare);
+    snareSizzleKnob.slider.setVisible(isSnare);  snareSizzleKnob.label.setVisible(isSnare);
+    snareBodyKnob.slider.setVisible(isSnare);    snareBodyKnob.label.setVisible(isSnare);
 
     const bool isMaster = (activeTab == SoundTab::MasterDSP);
+    echoMixKnob.slider.setVisible(isMaster);     echoMixKnob.label.setVisible(isMaster);
+    echoTimeKnob.slider.setVisible(isMaster);    echoTimeKnob.label.setVisible(isMaster);
     driveKnob.slider.setVisible(isMaster);       driveKnob.label.setVisible(isMaster);
     cutoffKnob.slider.setVisible(isMaster);      cutoffKnob.label.setVisible(isMaster);
-    resonanceKnob.slider.setVisible(isMaster);   resonanceKnob.label.setVisible(isMaster);
     compThreshKnob.slider.setVisible(isMaster);  compThreshKnob.label.setVisible(isMaster);
-    compAttackKnob.slider.setVisible(isMaster);  compAttackKnob.label.setVisible(isMaster);
     outputGainKnob.slider.setVisible(isMaster);  outputGainKnob.label.setVisible(isMaster);
 
     resized();
@@ -571,39 +573,40 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     const int knobsAreaH = 130;
     const int contentW = getWidth() - 60;
 
-    // KICK TAB (5 Knobs)
+    // KICK TAB (6 Knobs: Pitch Drop, Tune, Sweep, Decay, Punch Click, Drive)
     if (activeTab == SoundTab::Kick)
     {
-        const int numKnobs = 5;
+        const int numKnobs = 6;
         const int knobW = contentW / numKnobs;
-        placeKnob(kickTuneKnob,  juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickSweepKnob, juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickDecayKnob, juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickPunchKnob, juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickDriveKnob, juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(kickPitchKnob, juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(kickTuneKnob,  juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(kickSweepKnob, juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(kickDecayKnob, juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(kickPunchKnob, juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(kickDriveKnob, juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
-    // SNARE / CLAP TAB (6 Knobs: Decay, Noise Mix, Crack Snap, Air Sizzle, Body Punch, Body Tune)
+    // SNARE / CLAP TAB (6 Knobs: Pitch Drop, Decay, Noise Mix, Crack Snap, Air Sizzle, Body Punch)
     else if (activeTab == SoundTab::SnareClap)
     {
         const int numKnobs = 6;
         const int knobW = contentW / numKnobs;
-        placeKnob(snareDecayKnob,    juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareNoiseKnob,    juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareSnapKnob,     juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareSizzleKnob,   juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareBodyKnob,     juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareBodyFreqKnob, juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snarePitchKnob,  juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareDecayKnob,  juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareNoiseKnob,  juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareSnapKnob,   juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareSizzleKnob, juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareBodyKnob,   juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
-    // MASTER DSP TAB (6 Knobs: Drive, Cutoff, Resonance, Comp Thresh, Comp Attack, Master Gain)
+    // MASTER DSP & DUB ECHO TAB (6 Knobs: Dub Echo Mix, Echo Time, Tape Drive, Master Cutoff, Comp Thresh, Master Gain)
     else if (activeTab == SoundTab::MasterDSP)
     {
         const int numKnobs = 6;
         const int knobW = contentW / numKnobs;
-        placeKnob(driveKnob,       juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(cutoffKnob,      juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(resonanceKnob,   juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(compThreshKnob,  juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(compAttackKnob,  juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(echoMixKnob,     juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(echoTimeKnob,    juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(driveKnob,       juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(cutoffKnob,      juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(compThreshKnob,  juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
         placeKnob(outputGainKnob,  juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
 
