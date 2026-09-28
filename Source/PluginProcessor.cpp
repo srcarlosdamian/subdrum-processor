@@ -227,6 +227,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
         static_cast<juce::uint32>(getTotalNumOutputChannels())
     };
 
+    stepSequencer.prepare(sampleRate);
     samplePlayer.prepare(spec);
     drumSynth.prepare(spec);
     tapeSaturation.prepare(spec);
@@ -240,6 +241,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
 
 void SubdrumProcessorAudioProcessor::releaseResources()
 {
+    stepSequencer.reset();
     samplePlayer.reset();
     drumSynth.reset();
     tapeSaturation.reset();
@@ -273,10 +275,22 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     if (numSamples == 0)
         return;
 
-    // 1. Process Virtual/Computer Keyboard MIDI messages
+    // 1. Process TR-808 Style Step Sequencer Clock
+    double hostBpm = 0.0;
+    if (auto* playHead = getPlayHead())
+    {
+        if (auto posOpt = playHead->getPosition())
+        {
+            if (posOpt->getBpm().hasValue())
+                hostBpm = *posOpt->getBpm();
+        }
+    }
+    stepSequencer.process(midiMessages, numSamples, hostBpm);
+
+    // 2. Process Virtual/Computer Keyboard MIDI messages
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
-    // 2. Playback Audio Sample (Kick slot) & Drum Synthesizer (Snare/Kick voices)
+    // 3. Playback Audio Sample (Kick slot) & Drum Synthesizer (Snare/Kick voices)
     if (samplePlayer.hasSample())
     {
         samplePlayer.process(buffer, midiMessages);

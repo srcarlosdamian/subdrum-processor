@@ -150,6 +150,20 @@ private:
     RotaryControl vinylNoiseKnob;
     RotaryControl outputGainKnob;
 
+    // TR-808 Style Step Sequencer UI Components
+    juce::TextButton playButton;
+    juce::Slider bpmSlider;
+    juce::Label bpmLabel;
+    juce::TextButton clearPatternButton;
+    juce::TextButton defaultPatternButton;
+
+    juce::Label kickTrackLabel;
+    juce::Label snareTrackLabel;
+    std::array<juce::TextButton, 16> kickStepButtons;
+    std::array<juce::TextButton, 16> snareStepButtons;
+
+    void updateSequencerButtonColours();
+
     // Interactive Drum Pads (Strictly 2 Active Sounds)
     juce::TextButton kickPad;
     juce::TextButton snarePad;

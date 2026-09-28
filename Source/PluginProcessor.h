@@ -7,6 +7,7 @@
 #include <vector>
 #include "DSP/SamplePlayer.h"
 #include "DSP/DrumSynth.h"
+#include "DSP/StepSequencer.h"
 #include "DSP/TapeSaturation.h"
 #include "DSP/SamplerFilter.h"
 #include "DSP/VCACompressor.h"
@@ -57,6 +58,9 @@ public:
     juce::MidiKeyboardState& getKeyboardState() noexcept { return keyboardState; }
     float getGainReduction() const noexcept { return compressor.getGainReductionDb(); }
 
+    // Step Sequencer (TR-808 style Pattern Player)
+    underground::dsp::StepSequencer& getSequencer() noexcept { return stepSequencer; }
+
     // Sample Engine (Drag & Drop .WAV / Audio Files)
     bool loadSampleFile(const juce::File& file);
     bool hasLoadedSample() const noexcept { return samplePlayer.hasSample(); }
@@ -88,7 +92,8 @@ private:
     std::array<std::atomic<float>, visualizerBufferSize> visualizerFifo {};
     int visualizerWriteIndex { 0 };
 
-    // DSP Chain
+    // DSP Chain & Sequencer
+    underground::dsp::StepSequencer stepSequencer;
     underground::dsp::SamplePlayer samplePlayer;
     underground::dsp::DrumSynth drumSynth;
     underground::dsp::TapeSaturation tapeSaturation;
