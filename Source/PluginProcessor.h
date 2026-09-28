@@ -102,7 +102,22 @@ private:
     underground::dsp::VinylNoise vinylNoise;
     juce::dsp::Gain<float> outputGain;
 
-    // Cached atomic parameter pointers for real-time safe lock-free access
+    // Kick Engine Parameter Pointers
+    std::atomic<float>* kickTuneParam { nullptr };
+    std::atomic<float>* kickSweepParam { nullptr };
+    std::atomic<float>* kickDecayParam { nullptr };
+    std::atomic<float>* kickPunchParam { nullptr };
+    std::atomic<float>* kickDriveParam { nullptr };
+
+    // Snare / 2-Step Clap Engine Parameter Pointers
+    std::atomic<float>* snareDecayParam { nullptr };
+    std::atomic<float>* snareNoiseParam { nullptr };
+    std::atomic<float>* snareToneParam { nullptr };
+    std::atomic<float>* snareBrightParam { nullptr };
+    std::atomic<float>* snareBodyParam { nullptr };
+    std::atomic<float>* snareFlamParam { nullptr };
+
+    // Master DSP Parameter Pointers
     std::atomic<float>* driveParam { nullptr };
     std::atomic<float>* tapeMixParam { nullptr };
     std::atomic<float>* cutoffParam { nullptr };
@@ -116,12 +131,6 @@ private:
     std::atomic<float>* vinylNoiseParam { nullptr };
     std::atomic<float>* vinylDustParam { nullptr };
     std::atomic<float>* outputGainParam { nullptr };
-
-    // 2-Step Clap Sculpting Parameter Pointers
-    std::atomic<float>* clapDecayParam { nullptr };
-    std::atomic<float>* clapToneParam { nullptr };
-    std::atomic<float>* clapSnapParam { nullptr };
-    std::atomic<float>* clapFlamParam { nullptr };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SubdrumProcessorAudioProcessor)
 };

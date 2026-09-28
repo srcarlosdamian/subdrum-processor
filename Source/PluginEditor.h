@@ -85,8 +85,7 @@ public:
 
 class SubdrumProcessorAudioProcessorEditor : public juce::AudioProcessorEditor,
                                             public juce::Timer,
-                                            public juce::KeyListener,
-                                            public juce::FileDragAndDropTarget
+                                            public juce::KeyListener
 {
 public:
     explicit SubdrumProcessorAudioProcessorEditor(SubdrumProcessorAudioProcessor&);
@@ -99,15 +98,17 @@ public:
     bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) override;
     bool keyStateChanged(bool isKeyDown, juce::Component* originatingComponent) override;
 
-    // File Drag and Drop Support (Option A)
-    bool isInterestedInFileDrag(const juce::StringArray& files) override;
-    void fileDragEnter(const juce::StringArray& files, int x, int y) override;
-    void fileDragExit(const juce::StringArray& files) override;
-    void filesDropped(const juce::StringArray& files, int x, int y) override;
-
     void triggerDrumVoice(int noteNumber);
     void releaseDrumVoice(int noteNumber);
-    void openSampleFileDialog();
+
+    enum class SoundTab
+    {
+        Kick = 0,
+        SnareClap,
+        MasterDSP
+    };
+
+    void setActiveTab(SoundTab tab);
 
 private:
     struct RotaryControl
@@ -126,36 +127,43 @@ private:
     // Preset Selector UI
     juce::ComboBox presetComboBox;
 
-    // Sample Loader Button & File Chooser
-    juce::TextButton loadSampleButton;
-    std::unique_ptr<juce::FileChooser> fileChooser;
-    bool isDraggingFile { false };
-
     // Visualizer Bars Animation State
     static constexpr int numVisualizerCols = 32;
     std::array<float, numVisualizerCols> visualizerBarHeights {};
     float liveVisualizerPeak { 0.0f };
 
-    // DSP Controls (Row 1 - Tone & Sound Sculpting)
+    // Tab Navigation Buttons
+    juce::TextButton kickTabButton;
+    juce::TextButton snareTabButton;
+    juce::TextButton masterTabButton;
+    SoundTab activeTab { SoundTab::Kick };
+
+    // TAB 1: KICK CONTROLS
+    RotaryControl kickTuneKnob;
+    RotaryControl kickSweepKnob;
+    RotaryControl kickDecayKnob;
+    RotaryControl kickPunchKnob;
+    RotaryControl kickDriveKnob;
+
+    // TAB 2: SNARE / 2-STEP CLAP CONTROLS
+    RotaryControl snareDecayKnob;
+    RotaryControl snareNoiseKnob;
+    RotaryControl snareToneKnob;
+    RotaryControl snareBrightKnob;
+    RotaryControl snareBodyKnob;
+    RotaryControl snareFlamKnob;
+
+    // TAB 3: MASTER DSP CONTROLS
     RotaryControl driveKnob;
     RotaryControl cutoffKnob;
-    RotaryControl clapDecayKnob;
-    RotaryControl clapToneKnob;
-    RotaryControl clapSnapKnob;
-    RotaryControl clapFlamKnob;
-
-    // DSP Controls (Row 2 - Dynamics & Master)
+    RotaryControl resonanceKnob;
     RotaryControl compThreshKnob;
     RotaryControl compAttackKnob;
-    RotaryControl compReleaseKnob;
-    RotaryControl compMakeupKnob;
-    RotaryControl vinylNoiseKnob;
     RotaryControl outputGainKnob;
 
     // TR-808 Style Step Sequencer UI Components
     juce::TextButton playButton;
     juce::Slider bpmSlider;
-    juce::Label bpmLabel;
     juce::TextButton clearPatternButton;
     juce::TextButton defaultPatternButton;
 
@@ -170,9 +178,6 @@ private:
     juce::TextButton kickPad;
     juce::TextButton snarePad;
     std::array<juce::TextButton, 6> emptyPads;
-
-    // Virtual MIDI Keyboard Component
-    juce::MidiKeyboardComponent keyboardComponent;
 
     int octaveOffset { 0 };
 
