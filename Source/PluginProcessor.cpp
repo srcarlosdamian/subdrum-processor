@@ -25,7 +25,7 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
         item.store(0.0f, std::memory_order_relaxed);
 
     initFactoryPresets();
-    loadPreset(0); // Load default preset on startup
+    loadPreset(0); // Load Spectrogram Signature preset on startup
 }
 
 SubdrumProcessorAudioProcessor::~SubdrumProcessorAudioProcessor() = default;
@@ -34,7 +34,25 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
 {
     factoryPresets = {
         {
-            "01. Default Warm & Punchy",
+            "01. Deep Sub-LoFi Crunch (Spectrogram Signature)",
+            {
+                { "drive", 15.5f },       // Rich saturation creating dense harmonic bed
+                { "tapeMix", 100.0f },
+                { "cutoff", 7200.0f },     // Exact steep high-frequency roll-off from spectrogram
+                { "resonance", 1.65f },    // Reconstruction bump near 7kHz cutoff
+                { "compThreshold", -20.0f },// Tightly clamps the 1.1s spike visible in visual
+                { "compRatio", 5.5f },
+                { "compAttack", 2.0f },    // Ultra-fast transient snap
+                { "compRelease", 40.0f },  // Fast recovery pumping the sub tail
+                { "compMakeup", 3.5f },
+                { "compMix", 100.0f },
+                { "vinylNoise", 6.0f },    // Diffuse background texture floor
+                { "vinylDust", 15.0f },
+                { "outputGain", -1.0f }
+            }
+        },
+        {
+            "02. Default Warm & Punchy",
             {
                 { "drive", 8.0f },
                 { "tapeMix", 100.0f },
@@ -52,43 +70,43 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
             }
         },
         {
-            "02. 2-Step Underground Tape",
+            "03. 2-Step Underground Tape",
             {
-                { "drive", 16.0f },
+                { "drive", 17.0f },
                 { "tapeMix", 100.0f },
-                { "cutoff", 12000.0f },
-                { "resonance", 1.25f },
+                { "cutoff", 11500.0f },
+                { "resonance", 1.35f },
                 { "compThreshold", -18.0f },
                 { "compRatio", 6.0f },
-                { "compAttack", 2.5f },
+                { "compAttack", 2.2f },
                 { "compRelease", 45.0f },
                 { "compMakeup", 3.0f },
                 { "compMix", 100.0f },
-                { "vinylNoise", 5.0f },
-                { "vinylDust", 20.0f },
+                { "vinylNoise", 4.0f },
+                { "vinylDust", 18.0f },
                 { "outputGain", -1.0f }
             }
         },
         {
-            "03. 90s Vintage Sampler Lo-Fi",
+            "04. 90s Vintage Sampler Lo-Fi",
             {
                 { "drive", 11.0f },
                 { "tapeMix", 95.0f },
-                { "cutoff", 8200.0f },
-                { "resonance", 2.4f },
+                { "cutoff", 6400.0f },
+                { "resonance", 2.5f },
                 { "compThreshold", -16.0f },
                 { "compRatio", 4.5f },
-                { "compAttack", 6.0f },
+                { "compAttack", 5.0f },
                 { "compRelease", 70.0f },
                 { "compMakeup", 2.0f },
                 { "compMix", 100.0f },
-                { "vinylNoise", 12.0f },
-                { "vinylDust", 35.0f },
+                { "vinylNoise", 10.0f },
+                { "vinylDust", 30.0f },
                 { "outputGain", 0.0f }
             }
         },
         {
-            "04. Heavy VCA Drum Glue",
+            "05. Heavy VCA Drum Glue",
             {
                 { "drive", 7.0f },
                 { "tapeMix", 80.0f },
@@ -106,11 +124,11 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
             }
         },
         {
-            "05. Grimy Dust & Drive",
+            "06. Grimy Dust & Drive",
             {
-                { "drive", 22.0f },
+                { "drive", 24.0f },
                 { "tapeMix", 100.0f },
-                { "cutoff", 9500.0f },
+                { "cutoff", 8800.0f },
                 { "resonance", 1.8f },
                 { "compThreshold", -15.0f },
                 { "compRatio", 5.0f },
@@ -118,8 +136,8 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
                 { "compRelease", 50.0f },
                 { "compMakeup", 2.5f },
                 { "compMix", 100.0f },
-                { "vinylNoise", 20.0f },
-                { "vinylDust", 50.0f },
+                { "vinylNoise", 18.0f },
+                { "vinylDust", 45.0f },
                 { "outputGain", -1.5f }
             }
         }
@@ -175,7 +193,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
     // 1. Tape Saturation
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "drive", 1 }, "Drive",
-        juce::NormalisableRange<float>(0.0f, 30.0f, 0.1f), 8.0f,
+        juce::NormalisableRange<float>(0.0f, 30.0f, 0.1f), 15.5f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -186,38 +204,38 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
     // 2. Sampler Lowpass Filter
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "cutoff", 1 }, "Filter",
-        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 14500.0f,
+        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 7200.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "resonance", 1 }, "Resonance",
-        juce::NormalisableRange<float>(0.1f, 6.0f, 0.05f), 0.707f,
+        juce::NormalisableRange<float>(0.1f, 6.0f, 0.05f), 1.65f,
         juce::AudioParameterFloatAttributes().withLabel("Q")));
 
     // 3. VCA Drum Compressor
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compThreshold", 1 }, "Threshold",
-        juce::NormalisableRange<float>(-40.0f, 0.0f, 0.1f), -14.0f,
+        juce::NormalisableRange<float>(-40.0f, 0.0f, 0.1f), -20.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compRatio", 1 }, "Ratio",
-        juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f), 4.0f,
+        juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f), 5.5f,
         juce::AudioParameterFloatAttributes().withLabel(":1")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compAttack", 1 }, "Attack",
-        juce::NormalisableRange<float>(0.1f, 50.0f, 0.1f, 0.35f), 4.0f,
+        juce::NormalisableRange<float>(0.1f, 50.0f, 0.1f, 0.35f), 2.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compRelease", 1 }, "Decay",
-        juce::NormalisableRange<float>(10.0f, 400.0f, 1.0f, 0.4f), 55.0f,
+        juce::NormalisableRange<float>(10.0f, 400.0f, 1.0f, 0.4f), 40.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compMakeup", 1 }, "Volume",
-        juce::NormalisableRange<float>(-6.0f, 18.0f, 0.1f), 0.0f,
+        juce::NormalisableRange<float>(-6.0f, 18.0f, 0.1f), 3.5f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -228,18 +246,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
     // 4. Vinyl & Dust Noise
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "vinylNoise", 1 }, "Dust Hiss",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 6.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "vinylDust", 1 }, "Dust Crackle",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 15.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // 5. Output Trim
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "outputGain", 1 }, "Master",
-        juce::NormalisableRange<float>(-24.0f, 12.0f, 0.1f), 0.0f,
+        juce::NormalisableRange<float>(-24.0f, 12.0f, 0.1f), -1.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     return { params.begin(), params.end() };
