@@ -120,16 +120,18 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
 
     updateSequencerButtonColours();
 
-    // Row 1 Controls
+    // Row 1 Controls (Tone & Sound Sculpting)
     setupControl(driveKnob,       "drive",         "Drive");
-    setupControl(tapeMixKnob,     "tapeMix",       "Mix");
     setupControl(cutoffKnob,      "cutoff",        "Filter");
-    setupControl(resonanceKnob,   "resonance",     "Reso");
+    setupControl(clapDecayKnob,   "clapDecay",     "Snare Decay");
+    setupControl(clapToneKnob,    "clapTone",      "Wood Tone");
+    setupControl(clapSnapKnob,    "clapSnap",      "Clap Snap");
+    setupControl(clapFlamKnob,    "clapFlam",      "Clap Flam");
 
-    // Row 2 Controls
+    // Row 2 Controls (Dynamics & Master)
     setupControl(compThreshKnob,  "compThreshold", "Thresh");
     setupControl(compAttackKnob,  "compAttack",    "Attack");
-    setupControl(compReleaseKnob, "compRelease",   "Decay");
+    setupControl(compReleaseKnob, "compRelease",   "Comp Decay");
     setupControl(compMakeupKnob,  "compMakeup",    "Volume");
     setupControl(vinylNoiseKnob,  "vinylNoise",    "Dust");
     setupControl(outputGainKnob,  "outputGain",    "Master");
@@ -578,15 +580,17 @@ void SubdrumProcessorAudioProcessorEditor::resized()
         ctrl.slider.setBounds(box.reduced(6));
     };
 
-    // Row 1: 4 Knobs (Drive, Mix, Filter, Reso)
+    // Row 1: 6 Knobs (Drive, Filter, Snare Decay, Wood Tone, Clap Snap, Clap Flam)
     const int row1Y = knobsAreaTop;
-    const int numRow1 = 4;
+    const int numRow1 = 6;
     const int knobWidth1 = (getWidth() - 40) / numRow1;
 
     placeKnob(driveKnob,     juce::Rectangle<int>(20 + 0 * knobWidth1, row1Y, knobWidth1, rowHeight));
-    placeKnob(tapeMixKnob,   juce::Rectangle<int>(20 + 1 * knobWidth1, row1Y, knobWidth1, rowHeight));
-    placeKnob(cutoffKnob,    juce::Rectangle<int>(20 + 2 * knobWidth1, row1Y, knobWidth1, rowHeight));
-    placeKnob(resonanceKnob, juce::Rectangle<int>(20 + 3 * knobWidth1, row1Y, knobWidth1, rowHeight));
+    placeKnob(cutoffKnob,    juce::Rectangle<int>(20 + 1 * knobWidth1, row1Y, knobWidth1, rowHeight));
+    placeKnob(clapDecayKnob, juce::Rectangle<int>(20 + 2 * knobWidth1, row1Y, knobWidth1, rowHeight));
+    placeKnob(clapToneKnob,  juce::Rectangle<int>(20 + 3 * knobWidth1, row1Y, knobWidth1, rowHeight));
+    placeKnob(clapSnapKnob,  juce::Rectangle<int>(20 + 4 * knobWidth1, row1Y, knobWidth1, rowHeight));
+    placeKnob(clapFlamKnob,  juce::Rectangle<int>(20 + 5 * knobWidth1, row1Y, knobWidth1, rowHeight));
 
     // Row 2: 6 Knobs (Thresh, Attack, Decay, Volume, Dust, Master)
     const int row2Y = knobsAreaTop + rowHeight + 8;

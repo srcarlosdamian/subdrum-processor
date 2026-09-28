@@ -136,13 +136,15 @@ private:
     std::array<float, numVisualizerCols> visualizerBarHeights {};
     float liveVisualizerPeak { 0.0f };
 
-    // DSP Controls (Row 1)
+    // DSP Controls (Row 1 - Tone & Sound Sculpting)
     RotaryControl driveKnob;
-    RotaryControl tapeMixKnob;
     RotaryControl cutoffKnob;
-    RotaryControl resonanceKnob;
+    RotaryControl clapDecayKnob;
+    RotaryControl clapToneKnob;
+    RotaryControl clapSnapKnob;
+    RotaryControl clapFlamKnob;
 
-    // DSP Controls (Row 2)
+    // DSP Controls (Row 2 - Dynamics & Master)
     RotaryControl compThreshKnob;
     RotaryControl compAttackKnob;
     RotaryControl compReleaseKnob;

@@ -23,6 +23,11 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     vinylDustParam     = apvts.getRawParameterValue("vinylDust");
     outputGainParam    = apvts.getRawParameterValue("outputGain");
 
+    clapDecayParam     = apvts.getRawParameterValue("clapDecay");
+    clapToneParam      = apvts.getRawParameterValue("clapTone");
+    clapSnapParam      = apvts.getRawParameterValue("clapSnap");
+    clapFlamParam      = apvts.getRawParameterValue("clapFlam");
+
     for (auto& item : visualizerFifo)
         item.store(0.0f, std::memory_order_relaxed);
 
@@ -51,7 +56,11 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
                 { "compMix", 100.0f },
                 { "vinylNoise", 0.0f },
                 { "vinylDust", 0.0f },
-                { "outputGain", 0.0f }
+                { "outputGain", 0.0f },
+                { "clapDecay", 48.0f },
+                { "clapTone", 10.0f },
+                { "clapSnap", 85.0f },
+                { "clapFlam", 8.5f }
             }
         }
     };
@@ -173,6 +182,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
         juce::NormalisableRange<float>(-24.0f, 12.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
+    // 6. 2-Step Dry Clap / Snare Sculpting
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "clapDecay", 1 }, "Snare Decay",
+        juce::NormalisableRange<float>(15.0f, 250.0f, 1.0f, 0.4f), 48.0f,
+        juce::AudioParameterFloatAttributes().withLabel("ms")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "clapTone", 1 }, "Wood Tone",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 10.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "clapSnap", 1 }, "Clap Snap",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 85.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "clapFlam", 1 }, "Clap Flam",
+        juce::NormalisableRange<float>(0.0f, 25.0f, 0.1f), 8.5f,
+        juce::AudioParameterFloatAttributes().withLabel("ms")));
+
     return { params.begin(), params.end() };
 }
 
@@ -290,7 +320,13 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     // 2. Process Virtual/Computer Keyboard MIDI messages
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
-    // 3. Playback Audio Sample (Kick slot) & Drum Synthesizer (Snare/Kick voices)
+    // 3. Update Drum Synth Parameters
+    drumSynth.setClapDecay(clapDecayParam->load(std::memory_order_relaxed));
+    drumSynth.setClapTone(clapToneParam->load(std::memory_order_relaxed) * 0.01f);
+    drumSynth.setClapSnap(clapSnapParam->load(std::memory_order_relaxed) * 0.01f);
+    drumSynth.setClapFlam(clapFlamParam->load(std::memory_order_relaxed));
+
+    // 4. Playback Audio Sample (Kick slot) & Drum Synthesizer (Snare/Kick voices)
     if (samplePlayer.hasSample())
     {
         samplePlayer.process(buffer, midiMessages);

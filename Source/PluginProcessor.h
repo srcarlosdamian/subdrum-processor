@@ -117,5 +117,11 @@ private:
     std::atomic<float>* vinylDustParam { nullptr };
     std::atomic<float>* outputGainParam { nullptr };
 
+    // 2-Step Clap Sculpting Parameter Pointers
+    std::atomic<float>* clapDecayParam { nullptr };
+    std::atomic<float>* clapToneParam { nullptr };
+    std::atomic<float>* clapSnapParam { nullptr };
+    std::atomic<float>* clapFlamParam { nullptr };
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SubdrumProcessorAudioProcessor)
 };

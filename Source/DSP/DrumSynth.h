@@ -81,6 +81,11 @@ public:
         rngState = 0x98765432;
     }
 
+    void setClapDecay(float ms) noexcept { clapDecayMs.store(juce::jlimit(15.0f, 300.0f, ms), std::memory_order_relaxed); }
+    void setClapTone(float norm0to1) noexcept { clapToneAmount.store(juce::jlimit(0.0f, 1.0f, norm0to1), std::memory_order_relaxed); }
+    void setClapSnap(float norm0to1) noexcept { clapSnapAmount.store(juce::jlimit(0.0f, 2.0f, norm0to1), std::memory_order_relaxed); }
+    void setClapFlam(float ms) noexcept { clapFlamMs.store(juce::jlimit(0.0f, 25.0f, ms), std::memory_order_relaxed); }
+
     void handleMidiEvent(const juce::MidiMessage& msg)
     {
         if (msg.isNoteOn())
@@ -102,12 +107,13 @@ public:
             {
                 currentVelocity = vel;
                 clapSampleCounter = 0;
-                clapBurst1Env = vel * 0.75f; // First micro-flam
+                clapBurst1Env = vel * 0.85f; // First micro-flam
                 clapBurst2Env = 0.0f;
                 clapBurst3Env = 0.0f;
                 clapMainEnv = 0.0f;
 
-                rimToneEnv = vel * 1.1f;
+                const float tone = clapToneAmount.load(std::memory_order_relaxed);
+                rimToneEnv = vel * (tone * 1.2f);
                 rimTonePhase1 = 0.0f;
                 rimTonePhase2 = 0.0f;
             }
@@ -128,15 +134,20 @@ public:
         const float pitchDecayCoef = std::exp(-1.0f / (0.016f * static_cast<float>(sampleRate)));
         const float beaterDecayCoef = std::exp(-1.0f / (0.006f * static_cast<float>(sampleRate)));
 
-        // 2-Step Multi-burst Flam Timings (11ms, 22ms, 33ms)
-        const int flam2Sample = static_cast<int>(0.011f * static_cast<float>(sampleRate));
-        const int flam3Sample = static_cast<int>(0.022f * static_cast<float>(sampleRate));
-        const int mainBurstSample = static_cast<int>(0.033f * static_cast<float>(sampleRate));
+        // Real-time controllable 2-Step Clap Parameters
+        const float decaySec = clapDecayMs.load(std::memory_order_relaxed) * 0.001f;
+        const float toneNorm = clapToneAmount.load(std::memory_order_relaxed);
+        const float snapNorm = clapSnapAmount.load(std::memory_order_relaxed);
+        const float flamSec = clapFlamMs.load(std::memory_order_relaxed) * 0.001f;
 
-        // 2-Step Decay Rates (Ultra-Dry, snappy gating)
-        const float microBurstDecay = std::exp(-1.0f / (0.0075f * static_cast<float>(sampleRate))); // 7.5ms fast micro-tap
-        const float mainBurstDecay = std::exp(-1.0f / (0.095f * static_cast<float>(sampleRate)));   // 95ms tight dry decay
-        const float rimToneDecay = std::exp(-1.0f / (0.032f * static_cast<float>(sampleRate)));     // 32ms wooden rim click
+        const int flam2Sample = static_cast<int>(flamSec * 1.0f * static_cast<float>(sampleRate));
+        const int flam3Sample = static_cast<int>(flamSec * 2.0f * static_cast<float>(sampleRate));
+        const int mainBurstSample = static_cast<int>(flamSec * 3.0f * static_cast<float>(sampleRate));
+
+        // 2-Step Decay Rates (Ultra-Dry, controllable tight gating)
+        const float microBurstDecay = std::exp(-1.0f / (0.006f * static_cast<float>(sampleRate)));
+        const float mainBurstDecay = std::exp(-1.0f / (decaySec * static_cast<float>(sampleRate)));
+        const float rimToneDecay = std::exp(-1.0f / (0.025f * static_cast<float>(sampleRate)));
 
         for (int sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx)
         {
@@ -181,13 +192,20 @@ public:
             // 2. Authentic UK 2-Step Dry Clap / Snare Engine (Sound 2)
             if (clapSampleCounter < static_cast<int>(0.35f * static_cast<float>(sampleRate)))
             {
-                // Trigger subsequent micro-flams at exact sample delays
-                if (clapSampleCounter == flam2Sample)
-                    clapBurst2Env = currentVelocity * 0.85f;
-                if (clapSampleCounter == flam3Sample)
-                    clapBurst3Env = currentVelocity * 1.05f;
-                if (clapSampleCounter == mainBurstSample)
-                    clapMainEnv = currentVelocity * 1.45f;
+                if (flamSec > 0.001f)
+                {
+                    if (clapSampleCounter == flam2Sample)
+                        clapBurst2Env = currentVelocity * 0.90f;
+                    if (clapSampleCounter == flam3Sample)
+                        clapBurst3Env = currentVelocity * 1.10f;
+                    if (clapSampleCounter == mainBurstSample)
+                        clapMainEnv = currentVelocity * 1.60f;
+                }
+                else
+                {
+                    if (clapSampleCounter == 0)
+                        clapMainEnv = currentVelocity * 1.60f;
+                }
 
                 const float totalBurstNoise = (clapBurst1Env + clapBurst2Env + clapBurst3Env + clapMainEnv);
 
@@ -195,11 +213,11 @@ public:
                 {
                     const float rawNoise = (nextRandomFloat() * 2.0f - 1.0f) * totalBurstNoise;
 
-                    // Multi-Band Formant Filter Array
-                    const float woodPart   = clapWoodFilter.processSample(rawNoise) * 1.25f;   // 1150Hz hollow wood
-                    const float crackPart  = clapCrackFilter.processSample(rawNoise) * 1.55f;  // 2800Hz dry smack
-                    const float sizzlePart = clapSizzleFilter.processSample(rawNoise) * 0.90f; // 7200Hz top sizzle
-                    const float rimPart    = clapRimFilter.processSample(rawNoise) * 0.80f;    // 360Hz analog rim
+                    // Formant shaping
+                    const float woodPart   = clapWoodFilter.processSample(rawNoise) * (toneNorm * 1.4f);
+                    const float crackPart  = clapCrackFilter.processSample(rawNoise) * (snapNorm * 1.75f);
+                    const float sizzlePart = clapSizzleFilter.processSample(rawNoise) * (snapNorm * 1.1f);
+                    const float rimPart    = clapRimFilter.processSample(rawNoise) * (toneNorm * 0.7f);
 
                     // Dual Metallic / Wooden Inharmonic Rim Ping (340Hz + 890Hz)
                     const float rimSine1 = std::sin(rimTonePhase1) * 0.65f;
@@ -207,7 +225,7 @@ public:
                     const float rimTonal = (rimSine1 + rimSine2) * rimToneEnv;
 
                     const float combined2StepClap = woodPart + crackPart + sizzlePart + rimPart + rimTonal;
-                    synthSample += std::tanh(combined2StepClap * 1.4f);
+                    synthSample += std::tanh(combined2StepClap * 1.5f);
 
                     // Phase advancement for rim pings
                     rimTonePhase1 += twoPi * 340.0f * samplePeriod;
@@ -271,6 +289,12 @@ private:
     float rimTonePhase1 { 0.0f };
     float rimTonePhase2 { 0.0f };
     float rimToneEnv { 0.0f };
+
+    // Real-time Dynamic Parameters
+    std::atomic<float> clapDecayMs { 55.0f };     // 55ms default for tight, ultra-dry 2-step snap
+    std::atomic<float> clapToneAmount { 0.12f };  // Low default to remove unwanted acoustic/wood resonance
+    std::atomic<float> clapSnapAmount { 1.0f };   // Crisp 2.8kHz/7.2kHz bite
+    std::atomic<float> clapFlamMs { 9.0f };       // 9ms micro-flam spacing
 
     // 4-Band Formant Filter Array
     juce::dsp::IIR::Filter<float> clapWoodFilter;   // 1150 Hz
