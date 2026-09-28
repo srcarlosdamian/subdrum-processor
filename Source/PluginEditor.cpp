@@ -22,7 +22,7 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     setupControl(vinylNoiseKnob,  "vinylNoise",    "Dust");
     setupControl(outputGainKnob,  "outputGain",    "Master");
 
-    // Setup Ableton Drum Rack Styled Interactive Pads (8 Pads)
+    // Setup Interactive Performance Pads (8 Pads)
     setupPad(kickPad,      "KICK\n[ A ]",       36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
     setupPad(rimPad,       "RIM\n[ W ]",        37, juce::Colour(0xFFC8BDAA), juce::Colour(0xFF14161A)); // Light Taupe
     setupPad(snarePad,     "SNARE\n[ S ]",      38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
@@ -115,7 +115,7 @@ bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key,
     const auto keyChar = std::tolower(key.getTextCharacter());
     const int keyCode = key.getKeyCode();
 
-    // Ableton Live Octave Transpose (Z / X)
+    // Octave Transpose (Z / X)
     if (keyChar == 'z' || keyCode == 'Z')
     {
         octaveOffset = juce::jmax(-24, octaveOffset - 12);
@@ -129,8 +129,7 @@ bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key,
 
     int noteToPlay = -1;
 
-    // Standard Ableton Live Computer MIDI Keyboard mapping:
-    // C1=A, C#1=W, D1=S, D#1=E, E1=D, F1=F, F#1=T, G1=G, G#1=Y, A1=H, A#1=U, B1=J, C2=K, C#2=O, D2=L
+    // Standard Performance Keyboard mapping
     if (keyChar == 'a' || keyCode == 'A')
     {
         noteToPlay = 36 + octaveOffset;
@@ -271,7 +270,7 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
         }
     }
 
-    // 3. Header Branding (Bold Swiss Industrial Typography)
+    // 3. Header Branding (Clean Brutalist Typography)
     g.setColour(juce::Colour(0xFF101216));
     g.setFont(juce::FontOptions(26.0f, juce::Font::bold));
     g.drawText("Subdrum", 24, 12, 200, 26, juce::Justification::left);
@@ -280,10 +279,10 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
     g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
     g.drawText("Underground DSP", 24, 38, 250, 20, juce::Justification::left);
 
-    // Ableton Key Mapping Hint in header
+    // Performance Key Trigger Hint in header (No brand references)
     g.setColour(juce::Colour(0xFF626670));
     g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    g.drawText("ABLETON DRUM MAPPING: [A] Kick | [W] Rim | [S] Snare | [E] Clap | [T] Hat | [U] Open | [K] 808 | [Z/X] Octave",
+    g.drawText("KEY TRIGGER: [A] Kick | [W] Rim | [S] Snare | [E] Clap | [T] Hat | [U] Open | [K] 808 | [Z/X] Octave",
                getWidth() - 650, 18, 620, 18, juce::Justification::right);
 
     // 4. Upper Scope / Dot-Matrix Visualizer Screen Card
@@ -385,7 +384,7 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     placeKnob(vinylNoiseKnob,  juce::Rectangle<int>(20 + 4 * knobWidth2, row2Y, knobWidth2, rowHeight));
     placeKnob(outputGainKnob,  juce::Rectangle<int>(20 + 5 * knobWidth2, row2Y, knobWidth2, rowHeight));
 
-    // Bottom Squircles & Keyboard (8 Ableton Drum Pads)
+    // Bottom Squircles & Keyboard (8 Drum Pads)
     auto bottomArea = juce::Rectangle<int>(20, getHeight() - 130, getWidth() - 40, 115).reduced(10);
     auto padsRow = bottomArea.removeFromTop(40);
     const int numPads = 8;

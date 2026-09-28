@@ -5,7 +5,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "PluginProcessor.h"
 
-// Custom LookAndFeel implementing the Industrial Dot-Matrix / Nothing OS / Teenage Engineering aesthetic
+// Custom LookAndFeel implementing the Industrial Dot-Matrix aesthetic
 class IndustrialDotMatrixLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
@@ -125,7 +125,7 @@ private:
     RotaryControl vinylNoiseKnob;
     RotaryControl outputGainKnob;
 
-    // Ableton Drum Rack Styled Pads (8 Pads)
+    // Interactive Drum Pads (8 Pads)
     juce::TextButton kickPad;
     juce::TextButton rimPad;
     juce::TextButton snarePad;
@@ -138,7 +138,7 @@ private:
     // Virtual MIDI Keyboard Component
     juce::MidiKeyboardComponent keyboardComponent;
 
-    // Current active octave offset for Ableton-style Z/X octave transpose
+    // Current active octave offset
     int octaveOffset { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SubdrumProcessorAudioProcessorEditor)
