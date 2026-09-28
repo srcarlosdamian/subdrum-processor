@@ -8,7 +8,7 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
 {
     setLookAndFeel(&customLookAndFeel);
 
-    // Setup All Controls
+    // Setup DSP Rotary Controls
     setupControl(driveKnob,       "drive",         "DRIVE",       " dB");
     setupControl(tapeMixKnob,     "tapeMix",       "MIX",         " %");
 
@@ -27,6 +27,13 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
 
     setupControl(outputGainKnob,  "outputGain",    "OUTPUT TRIM", " dB");
 
+    // Setup Interactive Drum Pads
+    setupPad(kickPad,      "KICK\n[ A ]",       36);
+    setupPad(snarePad,     "SNARE\n[ S ]",      38);
+    setupPad(closedHatPad, "CLOSED HAT\n[ D ]", 42);
+    setupPad(openHatPad,   "OPEN HAT\n[ F ]",   46);
+    setupPad(subBassPad,   "SUB 808\n[ G ]",    48);
+
     // Virtual Keyboard Setup
     keyboardComponent.setAvailableRange(36, 72);
     keyboardComponent.setOctaveForMiddleC(3);
@@ -35,15 +42,20 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     keyboardComponent.setColour(juce::MidiKeyboardComponent::blackNoteColourId, juce::Colour(0xFF14171A));
     keyboardComponent.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId, juce::Colour(0xFFFF7A00));
     keyboardComponent.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, juce::Colour(0x33FFA23A));
+    keyboardComponent.setWantsKeyboardFocus(false);
     addAndMakeVisible(keyboardComponent);
 
+    // Add KeyListener to catch keyboard strokes
+    addKeyListener(this);
     setWantsKeyboardFocus(true);
-    setSize(920, 620);
+
+    setSize(940, 650);
     startTimerHz(30);
 }
 
 SubdrumProcessorAudioProcessorEditor::~SubdrumProcessorAudioProcessorEditor()
 {
+    removeKeyListener(this);
     setLookAndFeel(nullptr);
 }
 
@@ -53,46 +65,102 @@ void SubdrumProcessorAudioProcessorEditor::setupControl(RotaryControl& control, 
     control.slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     control.slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 64, 18);
     control.slider.setTextValueSuffix(suffix);
+    control.slider.setWantsKeyboardFocus(false);
     addAndMakeVisible(control.slider);
 
     control.label.setText(labelText, juce::dontSendNotification);
     control.label.setJustificationType(juce::Justification::centred);
     control.label.setFont(juce::FontOptions(11.5f, juce::Font::bold));
+    control.label.setWantsKeyboardFocus(false);
     addAndMakeVisible(control.label);
 
     control.attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.getAPVTS(), paramID, control.slider);
 }
 
-bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key)
+void SubdrumProcessorAudioProcessorEditor::setupPad(juce::TextButton& button, const juce::String& text, int note)
 {
-    int noteToPlay = -1;
-    const auto keyChar = std::tolower(key.getTextCharacter());
+    button.setButtonText(text);
+    button.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF20252C));
+    button.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFFF7A00));
+    button.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFFFA23A));
+    button.setColour(juce::TextButton::textColourOnId, juce::Colour(0xFFFFFFFF));
+    button.setClickingTogglesState(false);
+    button.setWantsKeyboardFocus(false);
 
-    switch (keyChar)
+    button.onStateChange = [this, &button, note]()
     {
-        case 'a': noteToPlay = 36; break; // Kick
-        case 's': noteToPlay = 38; break; // Snare
-        case 'd': noteToPlay = 42; break; // Closed Hat
-        case 'f': noteToPlay = 46; break; // Open Hat
-        case 'g': noteToPlay = 48; break; // Sub Bass
-        default: break;
+        if (button.isDown())
+            triggerDrumVoice(note);
+        else
+            releaseDrumVoice(note);
+    };
+
+    addAndMakeVisible(button);
+}
+
+void SubdrumProcessorAudioProcessorEditor::triggerDrumVoice(int noteNumber)
+{
+    audioProcessor.getKeyboardState().noteOn(1, noteNumber, 1.0f);
+}
+
+void SubdrumProcessorAudioProcessorEditor::releaseDrumVoice(int noteNumber)
+{
+    audioProcessor.getKeyboardState().noteOff(1, noteNumber, 0.0f);
+}
+
+bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key, juce::Component*)
+{
+    const auto keyChar = std::tolower(key.getTextCharacter());
+    const int keyCode = key.getKeyCode();
+
+    int noteToPlay = -1;
+
+    if (keyChar == 'a' || keyCode == 'A' || keyCode == 65)
+    {
+        noteToPlay = 36; // Kick
+        kickPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 's' || keyCode == 'S' || keyCode == 83)
+    {
+        noteToPlay = 38; // Snare
+        snarePad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'd' || keyCode == 'D' || keyCode == 68)
+    {
+        noteToPlay = 42; // Closed Hat
+        closedHatPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'f' || keyCode == 'F' || keyCode == 70)
+    {
+        noteToPlay = 46; // Open Hat
+        openHatPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'g' || keyCode == 'G' || keyCode == 71)
+    {
+        noteToPlay = 48; // Sub 808
+        subBassPad.setState(juce::Button::buttonDown);
     }
 
     if (noteToPlay != -1)
     {
-        audioProcessor.getKeyboardState().noteOn(1, noteToPlay, 0.95f);
+        triggerDrumVoice(noteToPlay);
         return true;
     }
 
     return false;
 }
 
-bool SubdrumProcessorAudioProcessorEditor::keyStateChanged(bool isKeyDown)
+bool SubdrumProcessorAudioProcessorEditor::keyStateChanged(bool isKeyDown, juce::Component*)
 {
     if (!isKeyDown)
     {
-        // Release notes on key up
+        kickPad.setState(juce::Button::buttonNormal);
+        snarePad.setState(juce::Button::buttonNormal);
+        closedHatPad.setState(juce::Button::buttonNormal);
+        openHatPad.setState(juce::Button::buttonNormal);
+        subBassPad.setState(juce::Button::buttonNormal);
+
         audioProcessor.getKeyboardState().allNotesOff(1);
     }
     return true;
@@ -146,17 +214,17 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
     // Layout Panels
     auto contentArea = getLocalBounds().reduced(16);
     contentArea.removeFromTop(50);
-    contentArea.removeFromBottom(105); // Space for keyboard & hints
+    contentArea.removeFromBottom(150); // Space for drum pads & keyboard
 
-    auto topRow = contentArea.removeFromTop(190);
+    auto topRow = contentArea.removeFromTop(185);
     contentArea.removeFromTop(10);
     auto bottomRow = contentArea;
 
-    auto tapeArea = topRow.removeFromLeft(440);
+    auto tapeArea = topRow.removeFromLeft(450);
     topRow.removeFromLeft(10);
     auto filterArea = topRow;
 
-    auto compArea = bottomRow.removeFromLeft(560);
+    auto compArea = bottomRow.removeFromLeft(570);
     bottomRow.removeFromLeft(10);
     auto vinylArea = bottomRow;
 
@@ -183,21 +251,21 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
     g.drawText(juce::String::formatted("GR: -%.1f dB", currentMeterGainReduction),
                meterBounds.getX() - 75, meterBounds.getY(), 70, 14, juce::Justification::right);
 
-    // Keyboard Section Hints Header
-    auto kbArea = getLocalBounds().reduced(16).removeFromBottom(100);
+    // Drum Pads & Keyboard Section Header
+    auto padSectionArea = getLocalBounds().reduced(16).removeFromBottom(145);
     g.setColour(juce::Colour(0xFF181C21));
-    g.fillRoundedRectangle(kbArea.toFloat(), 6.0f);
+    g.fillRoundedRectangle(padSectionArea.toFloat(), 6.0f);
     g.setColour(juce::Colour(0xFF262C34));
-    g.drawRoundedRectangle(kbArea.toFloat(), 6.0f, 1.0f);
+    g.drawRoundedRectangle(padSectionArea.toFloat(), 6.0f, 1.0f);
 
     g.setColour(juce::Colour(0xFFFFA23A));
     g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    g.drawText("LIVE DRUM TRIGGER (TOCA CON TU TECLADO):", kbArea.getX() + 12, kbArea.getY() + 6, 320, 18, juce::Justification::left);
+    g.drawText("LIVE DRUM PADS & MAC KEYBOARD TRIGGER:", padSectionArea.getX() + 12, padSectionArea.getY() + 6, 350, 18, juce::Justification::left);
 
-    g.setColour(juce::Colour(0xFF8CD0FF));
-    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    g.drawText("[A] KICK    |    [S] SNARE    |    [D] CLOSED HAT    |    [F] OPEN HAT    |    [G] SUB BASS",
-               kbArea.getX() + 320, kbArea.getY() + 6, kbArea.getWidth() - 330, 18, juce::Justification::right);
+    g.setColour(juce::Colour(0xFF6EC6FF));
+    g.setFont(juce::FontOptions(10.5f, juce::Font::plain));
+    g.drawText("Presiona las teclas [A, S, D, F, G] en tu Mac o haz clic en los pads para escuchar",
+               padSectionArea.getX() + 360, padSectionArea.getY() + 6, padSectionArea.getWidth() - 375, 18, juce::Justification::right);
 }
 
 void SubdrumProcessorAudioProcessorEditor::resized()
@@ -205,10 +273,10 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     auto contentArea = getLocalBounds().reduced(16);
     contentArea.removeFromTop(50);
 
-    auto kbArea = contentArea.removeFromBottom(100);
+    auto padSectionArea = contentArea.removeFromBottom(145);
     contentArea.removeFromBottom(10);
 
-    auto topRow = contentArea.removeFromTop(190);
+    auto topRow = contentArea.removeFromTop(185);
     contentArea.removeFromTop(10);
     auto bottomRow = contentArea;
 
@@ -219,7 +287,7 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     };
 
     // 1. Tape Section
-    auto tapeArea = topRow.removeFromLeft(440);
+    auto tapeArea = topRow.removeFromLeft(450);
     topRow.removeFromLeft(10);
     auto tapeContent = tapeArea.reduced(14).withTrimmedTop(22);
     int tapeColW = tapeContent.getWidth() / 2;
@@ -236,7 +304,7 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     placeKnob(resonanceKnob, filterContent.reduced(10, 0));
 
     // 3. Compressor Section
-    auto compArea = bottomRow.removeFromLeft(560);
+    auto compArea = bottomRow.removeFromLeft(570);
     bottomRow.removeFromLeft(10);
     auto compContent = compArea.reduced(12).withTrimmedTop(22);
     int compColW = compContent.getWidth() / 6;
@@ -257,6 +325,22 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     placeKnob(vinylDustKnob,   vinylContent.removeFromLeft(vinylColW).reduced(4, 0));
     placeKnob(outputGainKnob,  vinylContent.reduced(4, 0));
 
-    // 5. Virtual Keyboard
-    keyboardComponent.setBounds(kbArea.getX() + 10, kbArea.getY() + 28, kbArea.getWidth() - 20, 62);
+    // 5. Drum Pads Row
+    auto padsRow = padSectionArea.reduced(12).withTrimmedTop(20);
+    auto padsOnlyRow = padsRow.removeFromTop(44);
+    int padW = (padsOnlyRow.getWidth() - 32) / 5;
+
+    kickPad.setBounds(padsOnlyRow.removeFromLeft(padW));
+    padsOnlyRow.removeFromLeft(8);
+    snarePad.setBounds(padsOnlyRow.removeFromLeft(padW));
+    padsOnlyRow.removeFromLeft(8);
+    closedHatPad.setBounds(padsOnlyRow.removeFromLeft(padW));
+    padsOnlyRow.removeFromLeft(8);
+    openHatPad.setBounds(padsOnlyRow.removeFromLeft(padW));
+    padsOnlyRow.removeFromLeft(8);
+    subBassPad.setBounds(padsOnlyRow);
+
+    // 6. Virtual MIDI Keyboard
+    padsRow.removeFromTop(6);
+    keyboardComponent.setBounds(padsRow);
 }

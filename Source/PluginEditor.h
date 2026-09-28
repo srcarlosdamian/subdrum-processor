@@ -62,7 +62,8 @@ public:
 };
 
 class SubdrumProcessorAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                            public juce::Timer
+                                            public juce::Timer,
+                                            public juce::KeyListener
 {
 public:
     explicit SubdrumProcessorAudioProcessorEditor(SubdrumProcessorAudioProcessor&);
@@ -72,8 +73,12 @@ public:
     void resized() override;
     void timerCallback() override;
 
-    bool keyPressed(const juce::KeyPress& key) override;
-    bool keyStateChanged(bool isKeyDown) override;
+    // KeyListener callbacks (Captures all keyboard events globally)
+    bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) override;
+    bool keyStateChanged(bool isKeyDown, juce::Component* originatingComponent) override;
+
+    void triggerDrumVoice(int noteNumber);
+    void releaseDrumVoice(int noteNumber);
 
 private:
     struct RotaryControl
@@ -85,6 +90,8 @@ private:
 
     void setupControl(RotaryControl& control, const juce::String& paramID, const juce::String& labelText,
                       const juce::String& suffix = "");
+
+    void setupPad(juce::TextButton& button, const juce::String& text, int note);
 
     SubdrumProcessorAudioProcessor& audioProcessor;
     SubdrumLookAndFeel customLookAndFeel;
@@ -108,7 +115,14 @@ private:
 
     RotaryControl outputGainKnob;
 
-    // Interactive Virtual MIDI Keyboard Component
+    // Interactive Drum Pads
+    juce::TextButton kickPad;
+    juce::TextButton snarePad;
+    juce::TextButton closedHatPad;
+    juce::TextButton openHatPad;
+    juce::TextButton subBassPad;
+
+    // Virtual MIDI Keyboard Component
     juce::MidiKeyboardComponent keyboardComponent;
 
     float currentMeterGainReduction { 0.0f };
