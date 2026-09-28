@@ -13,6 +13,7 @@
 #include "DSP/VCACompressor.h"
 #include "DSP/VinylNoise.h"
 #include "DSP/TapeEcho.h"
+#include "DSP/RoomAmbience.h"
 
 class SubdrumProcessorAudioProcessor : public juce::AudioProcessor
 {
@@ -101,6 +102,7 @@ private:
     underground::dsp::SamplerFilter samplerFilter;
     underground::dsp::VCACompressor compressor;
     underground::dsp::TapeEcho tapeEcho;
+    underground::dsp::RoomAmbience roomAmbience;
     underground::dsp::VinylNoise vinylNoise;
     juce::dsp::Gain<float> outputGain;
 
@@ -121,7 +123,9 @@ private:
     std::atomic<float>* snareBodyParam { nullptr };
     std::atomic<float>* snareBodyFreqParam { nullptr };
 
-    // Master DSP & Dub Echo Parameter Pointers
+    // Master DSP, Dub Echo & Room Ambience Parameter Pointers
+    std::atomic<float>* roomMixParam { nullptr };
+    std::atomic<float>* roomSizeParam { nullptr };
     std::atomic<float>* echoTimeParam { nullptr };
     std::atomic<float>* echoFeedbackParam { nullptr };
     std::atomic<float>* echoMixParam { nullptr };

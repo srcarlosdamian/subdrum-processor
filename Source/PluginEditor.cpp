@@ -54,13 +54,13 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     setupControl(snareSizzleKnob, "snareSizzle", "Air Sizzle");
     setupControl(snareBodyKnob,   "snareBody",   "Body Punch");
 
-    // 3. MASTER DSP & DUB ECHO CONTROLS (6 Knobs)
-    setupControl(echoMixKnob,     "echoMix",       "Dub Echo");
-    setupControl(echoTimeKnob,    "echoTime",      "Echo Time");
-    setupControl(driveKnob,       "drive",         "Tape Drive");
-    setupControl(cutoffKnob,      "cutoff",        "Master Cutoff");
-    setupControl(compThreshKnob,  "compThreshold", "Comp Thresh");
-    setupControl(outputGainKnob,  "outputGain",    "Master Gain");
+    // 3. MASTER DSP, DUB ECHO & ROOM AMBIENCE CONTROLS (6 Knobs)
+    setupControl(roomMixKnob,    "roomMix",    "Room Space");
+    setupControl(roomSizeKnob,   "roomSize",   "Room Size");
+    setupControl(echoMixKnob,    "echoMix",    "Dub Echo");
+    setupControl(driveKnob,      "drive",      "Tape Drive");
+    setupControl(cutoffKnob,     "cutoff",     "Master Cutoff");
+    setupControl(outputGainKnob, "outputGain", "Master Gain");
 
     // TR-808 Sequencer Transport Setup
     playButton.setButtonText("▶ PLAY");
@@ -218,11 +218,11 @@ void SubdrumProcessorAudioProcessorEditor::setActiveTab(SoundTab tab)
     snareBodyKnob.slider.setVisible(isSnare);    snareBodyKnob.label.setVisible(isSnare);
 
     const bool isMaster = (activeTab == SoundTab::MasterDSP);
+    roomMixKnob.slider.setVisible(isMaster);     roomMixKnob.label.setVisible(isMaster);
+    roomSizeKnob.slider.setVisible(isMaster);    roomSizeKnob.label.setVisible(isMaster);
     echoMixKnob.slider.setVisible(isMaster);     echoMixKnob.label.setVisible(isMaster);
-    echoTimeKnob.slider.setVisible(isMaster);    echoTimeKnob.label.setVisible(isMaster);
     driveKnob.slider.setVisible(isMaster);       driveKnob.label.setVisible(isMaster);
     cutoffKnob.slider.setVisible(isMaster);      cutoffKnob.label.setVisible(isMaster);
-    compThreshKnob.slider.setVisible(isMaster);  compThreshKnob.label.setVisible(isMaster);
     outputGainKnob.slider.setVisible(isMaster);  outputGainKnob.label.setVisible(isMaster);
 
     resized();
@@ -597,16 +597,16 @@ void SubdrumProcessorAudioProcessorEditor::resized()
         placeKnob(snareSizzleKnob, juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
         placeKnob(snareBodyKnob,   juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
-    // MASTER DSP & DUB ECHO TAB (6 Knobs: Dub Echo Mix, Echo Time, Tape Drive, Master Cutoff, Comp Thresh, Master Gain)
+    // MASTER DSP, DUB ECHO & ROOM AMBIENCE TAB (6 Knobs: Room Space, Room Size, Dub Echo, Tape Drive, Master Cutoff, Master Gain)
     else if (activeTab == SoundTab::MasterDSP)
     {
         const int numKnobs = 6;
         const int knobW = contentW / numKnobs;
-        placeKnob(echoMixKnob,     juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(echoTimeKnob,    juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(driveKnob,       juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(cutoffKnob,      juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(compThreshKnob,  juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(roomMixKnob,     juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(roomSizeKnob,    juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(echoMixKnob,     juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(driveKnob,       juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(cutoffKnob,      juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
         placeKnob(outputGainKnob,  juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
 

@@ -154,12 +154,12 @@ private:
     RotaryControl snareSizzleKnob;
     RotaryControl snareBodyKnob;
 
-    // TAB 3: MASTER DSP & DUB ECHO CONTROLS
+    // TAB 3: MASTER DSP, DUB ECHO & ROOM AMBIENCE CONTROLS
+    RotaryControl roomMixKnob;
+    RotaryControl roomSizeKnob;
     RotaryControl echoMixKnob;
-    RotaryControl echoTimeKnob;
     RotaryControl driveKnob;
     RotaryControl cutoffKnob;
-    RotaryControl compThreshKnob;
     RotaryControl outputGainKnob;
 
     // TR-808 Style Step Sequencer UI Components

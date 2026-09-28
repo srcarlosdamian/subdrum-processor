@@ -26,7 +26,9 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     snareBodyParam     = apvts.getRawParameterValue("snareBody");
     snareBodyFreqParam = apvts.getRawParameterValue("snareBodyFreq");
 
-    // Master DSP & Dub Echo Parameters
+    // Master DSP, Dub Echo & Room Ambience Parameters
+    roomMixParam       = apvts.getRawParameterValue("roomMix");
+    roomSizeParam      = apvts.getRawParameterValue("roomSize");
     echoTimeParam      = apvts.getRawParameterValue("echoTime");
     echoFeedbackParam  = apvts.getRawParameterValue("echoFeedback");
     echoMixParam       = apvts.getRawParameterValue("echoMix");
@@ -74,6 +76,8 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
                 { "snareBody", 70.0f },
                 { "snareBodyFreq", 150.0f },
 
+                { "roomMix", 18.0f },
+                { "roomSize", 45.0f },
                 { "echoTime", 260.0f },
                 { "echoFeedback", 40.0f },
                 { "echoMix", 18.0f },
@@ -209,7 +213,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
         juce::NormalisableRange<float>(80.0f, 300.0f, 1.0f), 150.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
-    // --- 3. MASTER DSP & DUB ECHO PARAMETERS ---
+    // --- 3. MASTER DSP, DUB ECHO & ROOM AMBIENCE PARAMETERS ---
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "roomMix", 1 }, "Room Space",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 18.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "roomSize", 1 }, "Room Size",
+        juce::NormalisableRange<float>(10.0f, 95.0f, 0.5f), 45.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "echoMix", 1 }, "Dub Echo Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 18.0f,
@@ -351,6 +365,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
     samplerFilter.prepare(spec);
     compressor.prepare(spec);
     tapeEcho.prepare(spec);
+    roomAmbience.prepare(spec);
     vinylNoise.prepare(spec);
 
     outputGain.prepare(spec);
@@ -366,6 +381,7 @@ void SubdrumProcessorAudioProcessor::releaseResources()
     samplerFilter.reset();
     compressor.reset();
     tapeEcho.reset();
+    roomAmbience.reset();
     vinylNoise.reset();
 }
 
@@ -446,6 +462,9 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     tapeEcho.setFeedback(echoFeedbackParam->load(std::memory_order_relaxed) * 0.01f);
     tapeEcho.setMix(echoMixParam->load(std::memory_order_relaxed) * 0.01f);
 
+    roomAmbience.setMix(roomMixParam->load(std::memory_order_relaxed) * 0.01f);
+    roomAmbience.setRoomSize(roomSizeParam->load(std::memory_order_relaxed) * 0.01f);
+
     vinylNoise.setAmount(vinylNoiseParam->load(std::memory_order_relaxed) * 0.01f);
     vinylNoise.setDustDensity(vinylDustParam->load(std::memory_order_relaxed) * 0.01f);
 
@@ -459,6 +478,7 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     samplerFilter.process(context);
     compressor.process(context);
     tapeEcho.process(context);
+    roomAmbience.process(context);
     vinylNoise.process(context);
     outputGain.process(context);
 
