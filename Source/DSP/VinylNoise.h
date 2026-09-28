@@ -7,8 +7,9 @@ namespace underground::dsp
 {
 
 /**
- * @brief Procedural Vinyl & Dust Noise Generator.
- *        Emulates groove hiss, low-frequency rumble, and random micro-crackle/dust pops.
+ * @brief Procedural Vinyl & Dust Noise Generator with dynamic auto-gating.
+ *        Completely silent when idle (0% default) and dynamically tracks audio
+ *        presence so there is zero persistent background hiss when stopped.
  */
 class VinylNoise
 {
@@ -29,11 +30,9 @@ public:
 
         for (size_t i = 0; i < numChannels; ++i)
         {
-            // Hiss bandpass: 800Hz - 8000Hz
             hissFilters[i].coefficients = hissCoeffs;
             hissFilters[i].reset();
 
-            // Low frequency rumble: ~80Hz
             rumbleFilters[i].coefficients = rumbleCoeffs;
             rumbleFilters[i].reset();
         }
@@ -43,9 +42,11 @@ public:
 
         noiseLevelSmoothed.reset(sampleRate, 0.05);
         dustDensitySmoothed.reset(sampleRate, 0.05);
+        noiseLevelSmoothed.setCurrentAndTargetValue(0.0f);
+        dustDensitySmoothed.setCurrentAndTargetValue(0.0f);
 
-        // Fast random generator (Xorshift32 for real-time safety)
         rngState = 0x12345678;
+        signalEnvelope = 0.0f;
     }
 
     void reset()
@@ -56,8 +57,9 @@ public:
             f.reset();
         dustFilter.reset();
 
-        noiseLevelSmoothed.setCurrentAndTargetValue(noiseLevelSmoothed.getTargetValue());
-        dustDensitySmoothed.setCurrentAndTargetValue(dustDensitySmoothed.getTargetValue());
+        noiseLevelSmoothed.setCurrentAndTargetValue(0.0f);
+        dustDensitySmoothed.setCurrentAndTargetValue(0.0f);
+        signalEnvelope = 0.0f;
     }
 
     void setAmount(float amountLinear)
@@ -81,25 +83,43 @@ public:
         const size_t numSamples = outputBlock.getNumSamples();
         const size_t channels = outputBlock.getNumChannels();
 
+        const float targetGain = noiseLevelSmoothed.getTargetValue();
+        const float currentGain = noiseLevelSmoothed.getCurrentValue();
+
+        // If noise amount is 0, completely bypass to ensure 100% silence
+        if (targetGain <= 0.0001f && currentGain <= 0.0001f)
+            return;
+
         for (size_t i = 0; i < numSamples; ++i)
         {
             const float noiseGain = noiseLevelSmoothed.getNextValue();
             const float dustDensity = dustDensitySmoothed.getNextValue();
 
-            if (noiseGain <= 1.0e-5f)
+            if (noiseGain <= 0.0001f)
                 continue;
 
-            // Generate White Noise sample
+            // Track input signal presence for dynamic auto-gating
+            float sampleMag = 0.0f;
+            for (size_t ch = 0; ch < channels; ++ch)
+                sampleMag = std::max(sampleMag, std::abs(outputBlock.getSample(static_cast<int>(ch), static_cast<int>(i))));
+
+            // Envelope follower (fast attack, smooth release)
+            if (sampleMag > signalEnvelope)
+                signalEnvelope = 0.1f * sampleMag + 0.9f * signalEnvelope;
+            else
+                signalEnvelope *= 0.9995f;
+
+            // Dynamic ducking/gating factor: if signal is completely silent, fade noise to 0
+            const float gateFactor = juce::jlimit(0.0f, 1.0f, signalEnvelope * 20.0f);
+
+            // Generate noise
             const float whiteSample = nextRandomFloat() * 2.0f - 1.0f;
 
-            // Dust / Crackle Pop trigger: low probability spike
-            // Threshold scales with density
+            // Dust clicks / pops
             const float popThreshold = 0.9997f - (dustDensity * 0.006f);
             float crackleSample = 0.0f;
-            const float r = nextRandomFloat();
-            if (r > popThreshold)
+            if (nextRandomFloat() > popThreshold)
             {
-                // Impulsive click
                 const float polarity = (nextRandomFloat() > 0.5f) ? 1.0f : -1.0f;
                 crackleSample = polarity * (0.3f + 0.7f * nextRandomFloat());
             }
@@ -108,10 +128,10 @@ public:
 
             for (size_t ch = 0; ch < channels; ++ch)
             {
-                const float hiss = hissFilters[ch].processSample(whiteSample) * 0.06f;
-                const float rumble = rumbleFilters[ch].processSample(whiteSample) * 0.08f;
+                const float hiss = hissFilters[ch].processSample(whiteSample) * 0.05f;
+                const float rumble = rumbleFilters[ch].processSample(whiteSample) * 0.06f;
 
-                const float totalVinyl = (hiss + rumble + filteredCrackle * 0.25f) * noiseGain * 0.5f;
+                const float totalVinyl = (hiss + rumble + filteredCrackle * 0.2f) * noiseGain * gateFactor * 0.4f;
 
                 const float existing = outputBlock.getSample(static_cast<int>(ch), static_cast<int>(i));
                 outputBlock.setSample(static_cast<int>(ch), static_cast<int>(i), existing + totalVinyl);
@@ -120,26 +140,25 @@ public:
     }
 
 private:
-    // Fast lock-free random number generator (Xorshift32)
     inline float nextRandomFloat() noexcept
     {
         rngState ^= rngState << 13;
         rngState ^= rngState >> 17;
         rngState ^= rngState << 5;
-        // Map uint32_t to float [0.0, 1.0)
         return static_cast<float>(rngState & 0x00FFFFFF) / static_cast<float>(0x01000000);
     }
 
     double sampleRate { 44100.0 };
     size_t numChannels { 2 };
     uint32_t rngState { 0x12345678 };
+    float signalEnvelope { 0.0f };
 
     std::vector<juce::dsp::IIR::Filter<float>> hissFilters;
     std::vector<juce::dsp::IIR::Filter<float>> rumbleFilters;
     juce::dsp::IIR::Filter<float> dustFilter;
 
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> noiseLevelSmoothed { 0.0f };
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> dustDensitySmoothed { 0.5f };
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> dustDensitySmoothed { 0.0f };
 };
 
 } // namespace underground::dsp

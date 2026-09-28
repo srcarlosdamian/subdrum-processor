@@ -61,7 +61,6 @@ public:
         g.setColour(juce::Colour(0xFF14161A));
         g.fillEllipse(centre.x - innerRadius, centre.y - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
 
-        // Inner 3-spoke cutouts in off-white
         const float spokeRadius = innerRadius * 0.58f;
         g.setColour(juce::Colour(0xFFEDEDF0));
         for (int i = 0; i < 3; ++i)
@@ -71,7 +70,6 @@ public:
             g.fillEllipse(spokePt.x - 2.5f, spokePt.y - 2.5f, 5.0f, 5.0f);
         }
 
-        // Tiny central core pin
         g.fillEllipse(centre.x - 2.0f, centre.y - 2.0f, 4.0f, 4.0f);
     }
 };
@@ -127,15 +125,21 @@ private:
     RotaryControl vinylNoiseKnob;
     RotaryControl outputGainKnob;
 
-    // Interactive Drum Pads (Stylized like the modernist pastel squircle buttons)
+    // Ableton Drum Rack Styled Pads (8 Pads)
     juce::TextButton kickPad;
+    juce::TextButton rimPad;
     juce::TextButton snarePad;
+    juce::TextButton clapPad;
     juce::TextButton closedHatPad;
     juce::TextButton openHatPad;
+    juce::TextButton lowTomPad;
     juce::TextButton subBassPad;
 
     // Virtual MIDI Keyboard Component
     juce::MidiKeyboardComponent keyboardComponent;
+
+    // Current active octave offset for Ableton-style Z/X octave transpose
+    int octaveOffset { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SubdrumProcessorAudioProcessorEditor)
 };

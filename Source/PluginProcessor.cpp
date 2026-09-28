@@ -44,8 +44,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
 
     // 2. Sampler Lowpass Filter
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "cutoff", 1 }, "Cutoff",
-        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 12500.0f,
+        juce::ParameterID { "cutoff", 1 }, "Filter",
+        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 14000.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -70,12 +70,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "compRelease", 1 }, "Release",
+        juce::ParameterID { "compRelease", 1 }, "Decay",
         juce::NormalisableRange<float>(10.0f, 400.0f, 1.0f, 0.4f), 55.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "compMakeup", 1 }, "Makeup",
+        juce::ParameterID { "compMakeup", 1 }, "Volume",
         juce::NormalisableRange<float>(-6.0f, 18.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
@@ -84,20 +84,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
-    // 4. Vinyl & Dust Noise
+    // 4. Vinyl & Dust Noise (Defaulted to 0% so plugin is 100% clean and silent upon loading)
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "vinylNoise", 1 }, "Vinyl Hiss",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 12.0f,
+        juce::ParameterID { "vinylNoise", 1 }, "Dust Hiss",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "vinylDust", 1 }, "Dust Crackle",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 35.0f,
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // 5. Output Trim
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "outputGain", 1 }, "Output Gain",
+        juce::ParameterID { "outputGain", 1 }, "Master",
         juce::NormalisableRange<float>(-24.0f, 12.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
@@ -246,7 +246,6 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
         }
     }
 
-    // Push into ring buffer
     visualizerFifo[visualizerWriteIndex].store(peakValue, std::memory_order_relaxed);
     visualizerWriteIndex = (visualizerWriteIndex + 1) % visualizerBufferSize;
 }

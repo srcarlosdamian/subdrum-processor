@@ -22,12 +22,15 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     setupControl(vinylNoiseKnob,  "vinylNoise",    "Dust");
     setupControl(outputGainKnob,  "outputGain",    "Master");
 
-    // Setup Interactive Modernist Drum Pads (Matching image palette)
-    setupPad(kickPad,      "KICK\n[ A ]",       36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe / Khaki
+    // Setup Ableton Drum Rack Styled Interactive Pads (8 Pads)
+    setupPad(kickPad,      "KICK\n[ A ]",       36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
+    setupPad(rimPad,       "RIM\n[ W ]",        37, juce::Colour(0xFFC8BDAA), juce::Colour(0xFF14161A)); // Light Taupe
     setupPad(snarePad,     "SNARE\n[ S ]",      38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
-    setupPad(closedHatPad, "CL. HAT\n[ D ]",    42, juce::Colour(0xFF87A996), juce::Colour(0xFF14161A)); // Sage
-    setupPad(openHatPad,   "OP. HAT\n[ F ]",    46, juce::Colour(0xFFFF8EE2), juce::Colour(0xFF14161A)); // Magenta Pink
-    setupPad(subBassPad,   "SUB 808\n[ G ]",    48, juce::Colour(0xFF16181C), juce::Colour(0xFFEDEDF0)); // Rotor Black
+    setupPad(clapPad,      "CLAP\n[ E ]",       39, juce::Colour(0xFFB3B1FF), juce::Colour(0xFF14161A)); // Lavender
+    setupPad(closedHatPad, "CL. HAT\n[ T ]",    42, juce::Colour(0xFF87A996), juce::Colour(0xFF14161A)); // Sage Green
+    setupPad(openHatPad,   "OP. HAT\n[ U ]",    46, juce::Colour(0xFFFF8EE2), juce::Colour(0xFF14161A)); // Pink
+    setupPad(lowTomPad,    "TOM\n[ F ]",        41, juce::Colour(0xFF72B0A8), juce::Colour(0xFF14161A)); // Muted Teal
+    setupPad(subBassPad,   "SUB 808\n[ K ]",    48, juce::Colour(0xFF16181C), juce::Colour(0xFFEDEDF0)); // Rotor Black
 
     // Virtual Keyboard Setup
     keyboardComponent.setAvailableRange(36, 72);
@@ -112,32 +115,96 @@ bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key,
     const auto keyChar = std::tolower(key.getTextCharacter());
     const int keyCode = key.getKeyCode();
 
+    // Ableton Live Octave Transpose (Z / X)
+    if (keyChar == 'z' || keyCode == 'Z')
+    {
+        octaveOffset = juce::jmax(-24, octaveOffset - 12);
+        return true;
+    }
+    if (keyChar == 'x' || keyCode == 'X')
+    {
+        octaveOffset = juce::jmin(24, octaveOffset + 12);
+        return true;
+    }
+
     int noteToPlay = -1;
 
-    if (keyChar == 'a' || keyCode == 'A' || keyCode == 65)
+    // Standard Ableton Live Computer MIDI Keyboard mapping:
+    // C1=A, C#1=W, D1=S, D#1=E, E1=D, F1=F, F#1=T, G1=G, G#1=Y, A1=H, A#1=U, B1=J, C2=K, C#2=O, D2=L
+    if (keyChar == 'a' || keyCode == 'A')
     {
-        noteToPlay = 36;
+        noteToPlay = 36 + octaveOffset;
         kickPad.setState(juce::Button::buttonDown);
     }
-    else if (keyChar == 's' || keyCode == 'S' || keyCode == 83)
+    else if (keyChar == 'w' || keyCode == 'W')
     {
-        noteToPlay = 38;
+        noteToPlay = 37 + octaveOffset;
+        rimPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 's' || keyCode == 'S')
+    {
+        noteToPlay = 38 + octaveOffset;
         snarePad.setState(juce::Button::buttonDown);
     }
-    else if (keyChar == 'd' || keyCode == 'D' || keyCode == 68)
+    else if (keyChar == 'e' || keyCode == 'E')
     {
-        noteToPlay = 42;
+        noteToPlay = 39 + octaveOffset;
+        clapPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'd' || keyCode == 'D')
+    {
+        noteToPlay = 40 + octaveOffset;
+        snarePad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'f' || keyCode == 'F')
+    {
+        noteToPlay = 41 + octaveOffset;
+        lowTomPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 't' || keyCode == 'T')
+    {
+        noteToPlay = 42 + octaveOffset;
         closedHatPad.setState(juce::Button::buttonDown);
     }
-    else if (keyChar == 'f' || keyCode == 'F' || keyCode == 70)
+    else if (keyChar == 'g' || keyCode == 'G')
     {
-        noteToPlay = 46;
+        noteToPlay = 43 + octaveOffset;
+        lowTomPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'y' || keyCode == 'Y')
+    {
+        noteToPlay = 44 + octaveOffset;
+        closedHatPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'h' || keyCode == 'H')
+    {
+        noteToPlay = 45 + octaveOffset;
+        lowTomPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'u' || keyCode == 'U')
+    {
+        noteToPlay = 46 + octaveOffset;
         openHatPad.setState(juce::Button::buttonDown);
     }
-    else if (keyChar == 'g' || keyCode == 'G' || keyCode == 71)
+    else if (keyChar == 'j' || keyCode == 'J')
     {
-        noteToPlay = 48;
+        noteToPlay = 47 + octaveOffset;
+        lowTomPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'k' || keyCode == 'K')
+    {
+        noteToPlay = 48 + octaveOffset;
         subBassPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'o' || keyCode == 'O')
+    {
+        noteToPlay = 49 + octaveOffset;
+        openHatPad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'l' || keyCode == 'L')
+    {
+        noteToPlay = 50 + octaveOffset;
+        closedHatPad.setState(juce::Button::buttonDown);
     }
 
     if (noteToPlay != -1)
@@ -154,9 +221,12 @@ bool SubdrumProcessorAudioProcessorEditor::keyStateChanged(bool isKeyDown, juce:
     if (!isKeyDown)
     {
         kickPad.setState(juce::Button::buttonNormal);
+        rimPad.setState(juce::Button::buttonNormal);
         snarePad.setState(juce::Button::buttonNormal);
+        clapPad.setState(juce::Button::buttonNormal);
         closedHatPad.setState(juce::Button::buttonNormal);
         openHatPad.setState(juce::Button::buttonNormal);
+        lowTomPad.setState(juce::Button::buttonNormal);
         subBassPad.setState(juce::Button::buttonNormal);
 
         audioProcessor.getKeyboardState().allNotesOff(1);
@@ -201,7 +271,7 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
         }
     }
 
-    // 3. Header Branding (Bold Swiss Industrial Typography matching "Unified / Chat Interface")
+    // 3. Header Branding (Bold Swiss Industrial Typography)
     g.setColour(juce::Colour(0xFF101216));
     g.setFont(juce::FontOptions(26.0f, juce::Font::bold));
     g.drawText("Subdrum", 24, 12, 200, 26, juce::Justification::left);
@@ -210,15 +280,11 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
     g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
     g.drawText("Underground DSP", 24, 38, 250, 20, juce::Justification::left);
 
-    // Top Dynamic Pill / Camera Capsule on top right
-    auto capsuleBounds = juce::Rectangle<float>(static_cast<float>(getWidth() - 95), 18.0f, 70.0f, 24.0f);
-    g.setColour(juce::Colour(0xFF121417));
-    g.fillRoundedRectangle(capsuleBounds, 12.0f);
-
-    g.setColour(juce::Colour(0xFF323640));
-    g.fillEllipse(capsuleBounds.getX() + 10.0f, capsuleBounds.getY() + 7.0f, 10.0f, 10.0f);
-    g.setColour(juce::Colour(0xFF007AFF));
-    g.fillEllipse(capsuleBounds.getX() + 13.0f, capsuleBounds.getY() + 10.0f, 4.0f, 4.0f);
+    // Ableton Key Mapping Hint in header
+    g.setColour(juce::Colour(0xFF626670));
+    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    g.drawText("ABLETON DRUM MAPPING: [A] Kick | [W] Rim | [S] Snare | [E] Clap | [T] Hat | [U] Open | [K] 808 | [Z/X] Octave",
+               getWidth() - 650, 18, 620, 18, juce::Justification::right);
 
     // 4. Upper Scope / Dot-Matrix Visualizer Screen Card
     auto screenBounds = juce::Rectangle<float>(20.0f, 66.0f, static_cast<float>(getWidth() - 40), 145.0f);
@@ -236,7 +302,7 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
         g.fillRect(x, centerY - 0.75f, 5.0f, 1.5f);
     }
 
-    // 5. Render Waveform / Envelope as Bold Dot-Matrix Columns (Inspired by the digital clock dots)
+    // 5. Render Waveform / Envelope as Bold Dot-Matrix Columns
     const float startX = screenBounds.getX() + 32.0f;
     const float colGap = 13.0f;
     const float dotSize = 4.8f;
@@ -319,19 +385,26 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     placeKnob(vinylNoiseKnob,  juce::Rectangle<int>(20 + 4 * knobWidth2, row2Y, knobWidth2, rowHeight));
     placeKnob(outputGainKnob,  juce::Rectangle<int>(20 + 5 * knobWidth2, row2Y, knobWidth2, rowHeight));
 
-    // Bottom Squircles & Keyboard
+    // Bottom Squircles & Keyboard (8 Ableton Drum Pads)
     auto bottomArea = juce::Rectangle<int>(20, getHeight() - 130, getWidth() - 40, 115).reduced(10);
     auto padsRow = bottomArea.removeFromTop(40);
-    const int padW = (padsRow.getWidth() - 32) / 5;
+    const int numPads = 8;
+    const int padW = (padsRow.getWidth() - ((numPads - 1) * 6)) / numPads;
 
     kickPad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(8);
+    padsRow.removeFromLeft(6);
+    rimPad.setBounds(padsRow.removeFromLeft(padW));
+    padsRow.removeFromLeft(6);
     snarePad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(8);
+    padsRow.removeFromLeft(6);
+    clapPad.setBounds(padsRow.removeFromLeft(padW));
+    padsRow.removeFromLeft(6);
     closedHatPad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(8);
+    padsRow.removeFromLeft(6);
     openHatPad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(8);
+    padsRow.removeFromLeft(6);
+    lowTomPad.setBounds(padsRow.removeFromLeft(padW));
+    padsRow.removeFromLeft(6);
     subBassPad.setBounds(padsRow);
 
     bottomArea.removeFromTop(6);

@@ -8,13 +8,8 @@ namespace underground::dsp
 {
 
 /**
- * @brief Real-time polyphonic lo-fi drum voice synthesizer for testing and performance.
- *        Generates authentic 2-step / garage drum hits:
- *        - Note 36 (C1 / 'A'): Punchy Garage Kick
- *        - Note 38 (D1 / 'S'): Crispy Underground Snare
- *        - Note 42 (F#1 / 'D'): Tight 2-Step Closed Hat
- *        - Note 46 (A#1 / 'F'): Sizzling Open Hat
- *        - Note 48 (C2 / 'G'): Warm Sub Bass Tone
+ * @brief Multi-voice drum synthesizer mapped exactly to Ableton Live's Drum Rack
+ *        and standard General MIDI (GM) drum note numbers (Notes 36 - 51).
  */
 class DrumSynth
 {
@@ -25,11 +20,18 @@ public:
     void prepare(const juce::dsp::ProcessSpec& spec)
     {
         sampleRate = spec.sampleRate;
+
         hatFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 7000.0f, 1.2f);
         hatFilter.reset();
 
         snareFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 2200.0f, 1.0f);
         snareFilter.reset();
+
+        clapFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1400.0f, 1.4f);
+        clapFilter.reset();
+
+        rimFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1800.0f, 3.5f);
+        rimFilter.reset();
 
         reset();
     }
@@ -44,14 +46,28 @@ public:
         snareToneEnv = 0.0f;
         snareNoiseEnv = 0.0f;
 
+        clapEnv = 0.0f;
+        clapStep = 0;
+        clapTimer = 0;
+
+        rimEnv = 0.0f;
+        rimPhase = 0.0f;
+
         hatEnv = 0.0f;
         hatDecayRate = 0.999f;
+
+        tomEnv = 0.0f;
+        tomPhase = 0.0f;
+        tomFreq = 120.0f;
 
         subPhase = 0.0f;
         subEnv = 0.0f;
 
         hatFilter.reset();
         snareFilter.reset();
+        clapFilter.reset();
+        rimFilter.reset();
+
         rngState = 0x98765432;
     }
 
@@ -59,35 +75,93 @@ public:
     {
         if (msg.isNoteOn())
         {
-            const int note = msg.getNoteNumber();
+            const int rawNote = msg.getNoteNumber();
+            // Map octave transpositions (e.g. C1=36 or C2=48 or C3=60)
+            int note = rawNote;
+            if (note >= 60 && note <= 75)
+                note -= 24; // Transpose C3 down to C1 standard drum rack
+            else if (note >= 48 && note <= 59 && note != 48)
+                note -= 12;
+
             const float vel = msg.getFloatVelocity();
 
-            if (note == 36 || note == 60) // C1 or C3 (Kick / 'A')
+            switch (note)
             {
-                kickEnv = vel * 1.0f;
-                kickPitchEnv = 1.0f;
-                kickPhase = 0.0f;
-            }
-            else if (note == 38 || note == 62) // D1 or D3 (Snare / 'S')
-            {
-                snareToneEnv = vel * 0.8f;
-                snareNoiseEnv = vel * 0.9f;
-                snarePhase = 0.0f;
-            }
-            else if (note == 42 || note == 64) // F#1 or E3 (Closed Hat / 'D')
-            {
-                hatEnv = vel * 0.7f;
-                hatDecayRate = std::exp(-1.0f / (0.001f * 35.0f * static_cast<float>(sampleRate)));
-            }
-            else if (note == 46 || note == 65) // A#1 or F3 (Open Hat / 'F')
-            {
-                hatEnv = vel * 0.75f;
-                hatDecayRate = std::exp(-1.0f / (0.001f * 320.0f * static_cast<float>(sampleRate)));
-            }
-            else if (note == 48 || note == 67) // C2 or G3 (Sub Bass / 'G')
-            {
-                subEnv = vel * 0.9f;
-                subPhase = 0.0f;
+                case 35: // Acoustic Bass Drum
+                case 36: // C1 (Ableton Key 'A') - Bass Drum / Kick
+                    kickEnv = vel * 1.1f;
+                    kickPitchEnv = 1.0f;
+                    kickPhase = 0.0f;
+                    break;
+
+                case 37: // C#1 (Ableton Key 'W') - Side Stick / Rimshot
+                    rimEnv = vel * 1.0f;
+                    rimPhase = 0.0f;
+                    break;
+
+                case 38: // D1 (Ableton Key 'S') - Snare Acoustic / Lo-fi
+                case 40: // E1 (Ableton Key 'D') - Electric Snare
+                    snareToneEnv = vel * 0.85f;
+                    snareNoiseEnv = vel * 0.95f;
+                    snarePhase = 0.0f;
+                    break;
+
+                case 39: // D#1 (Ableton Key 'E') - Hand Clap
+                    clapEnv = vel * 1.0f;
+                    clapStep = 0;
+                    clapTimer = 0;
+                    break;
+
+                case 41: // F1 (Ableton Key 'F') - Low Floor Tom
+                    tomFreq = 85.0f;
+                    tomEnv = vel * 0.9f;
+                    tomPhase = 0.0f;
+                    break;
+
+                case 43: // G1 (Ableton Key 'G') - Low Tom
+                    tomFreq = 110.0f;
+                    tomEnv = vel * 0.9f;
+                    tomPhase = 0.0f;
+                    break;
+
+                case 45: // A1 (Ableton Key 'H') - Mid Tom
+                    tomFreq = 145.0f;
+                    tomEnv = vel * 0.9f;
+                    tomPhase = 0.0f;
+                    break;
+
+                case 47: // B1 (Ableton Key 'J') - High Tom
+                    tomFreq = 190.0f;
+                    tomEnv = vel * 0.9f;
+                    tomPhase = 0.0f;
+                    break;
+
+                case 42: // F#1 (Ableton Key 'T') - Closed Hi-Hat
+                case 44: // G#1 (Ableton Key 'Y') - Pedal Hi-Hat
+                    hatEnv = vel * 0.75f;
+                    hatDecayRate = std::exp(-1.0f / (0.001f * 38.0f * static_cast<float>(sampleRate)));
+                    break;
+
+                case 46: // A#1 (Ableton Key 'U') - Open Hi-Hat
+                case 49: // C#2 (Ableton Key 'O') - Crash Cymbal
+                case 51: // D#2 - Ride Cymbal
+                    hatEnv = vel * 0.85f;
+                    hatDecayRate = std::exp(-1.0f / (0.001f * 360.0f * static_cast<float>(sampleRate)));
+                    break;
+
+                case 48: // C2 (Ableton Key 'K') - Heavy Sub 808 Bass
+                    subEnv = vel * 1.0f;
+                    subPhase = 0.0f;
+                    break;
+
+                default:
+                    // Fallback for higher keyboard notes: play melodic sub bass
+                    if (rawNote > 48)
+                    {
+                        subEnv = vel * 0.9f;
+                        subPhase = 0.0f;
+                    }
+                    break;
             }
         }
     }
@@ -103,7 +177,6 @@ public:
 
         for (int sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx)
         {
-            // Process MIDI messages occurring at this sample
             while (midiIterator != midiMessages.cend() && (*midiIterator).samplePosition == sampleIdx)
             {
                 handleMidiEvent((*midiIterator).getMessage());
@@ -115,15 +188,15 @@ public:
             // 1. Kick Voice
             if (kickEnv > 1.0e-4f)
             {
-                const float kickFreq = 48.0f + 120.0f * (kickPitchEnv * kickPitchEnv);
-                synthSample += std::sin(kickPhase) * kickEnv * 1.2f;
+                const float kickFreq = 46.0f + 130.0f * (kickPitchEnv * kickPitchEnv);
+                synthSample += std::sin(kickPhase) * kickEnv * 1.25f;
 
                 kickPhase += twoPi * kickFreq * samplePeriod;
                 if (kickPhase >= twoPi)
                     kickPhase -= twoPi;
 
-                kickEnv *= 0.99965f; // Fast exponential decay
-                kickPitchEnv *= 0.996f; // Faster pitch drop for transient snap
+                kickEnv *= 0.99962f;
+                kickPitchEnv *= 0.9958f;
             }
 
             // 2. Snare Voice
@@ -131,7 +204,7 @@ public:
             {
                 const float snareTone = std::sin(snarePhase) * snareToneEnv * 0.6f;
                 const float rawNoise = nextRandomFloat() * 2.0f - 1.0f;
-                const float filteredNoise = snareFilter.processSample(rawNoise) * snareNoiseEnv * 0.9f;
+                const float filteredNoise = snareFilter.processSample(rawNoise) * snareNoiseEnv * 0.95f;
 
                 synthSample += (snareTone + filteredNoise);
 
@@ -140,39 +213,81 @@ public:
                     snarePhase -= twoPi;
 
                 snareToneEnv *= 0.9992f;
-                snareNoiseEnv *= 0.9993f;
+                snareNoiseEnv *= 0.99935f;
             }
 
-            // 3. Hi-Hat Voice
+            // 3. Hand Clap Voice (Multi-burst transient)
+            if (clapEnv > 1.0e-4f)
+            {
+                clapTimer++;
+                const int burstSamples = static_cast<int>(sampleRate * 0.011f); // 11ms burst spacing
+                if (clapStep < 3 && clapTimer > burstSamples)
+                {
+                    clapTimer = 0;
+                    clapStep++;
+                    clapEnv = 0.9f;
+                }
+
+                const float rawNoise = nextRandomFloat() * 2.0f - 1.0f;
+                const float filteredClap = clapFilter.processSample(rawNoise) * clapEnv * 1.1f;
+                synthSample += filteredClap;
+
+                clapEnv *= 0.9994f;
+            }
+
+            // 4. Rimshot Voice
+            if (rimEnv > 1.0e-4f)
+            {
+                const float rimTone = std::sin(rimPhase) * rimEnv * 1.2f;
+                synthSample += rimFilter.processSample(rimTone);
+
+                rimPhase += twoPi * 1650.0f * samplePeriod;
+                if (rimPhase >= twoPi)
+                    rimPhase -= twoPi;
+
+                rimEnv *= 0.997f;
+            }
+
+            // 5. Toms Voice
+            if (tomEnv > 1.0e-4f)
+            {
+                synthSample += std::sin(tomPhase) * tomEnv * 0.8f;
+                tomPhase += twoPi * tomFreq * samplePeriod;
+                if (tomPhase >= twoPi)
+                    tomPhase -= twoPi;
+
+                tomEnv *= 0.9994f;
+            }
+
+            // 6. Hi-Hat / Cymbals
             if (hatEnv > 1.0e-4f)
             {
                 const float noise = nextRandomFloat() * 2.0f - 1.0f;
-                const float filteredHat = hatFilter.processSample(noise) * hatEnv * 0.8f;
+                const float filteredHat = hatFilter.processSample(noise) * hatEnv * 0.85f;
                 synthSample += filteredHat;
 
                 hatEnv *= hatDecayRate;
             }
 
-            // 4. Sub Bass Voice
+            // 7. Sub 808 Bass Voice
             if (subEnv > 1.0e-4f)
             {
-                const float subTone = std::sin(subPhase) * subEnv * 0.9f;
+                const float subTone = std::sin(subPhase) * subEnv * 0.95f;
                 synthSample += subTone;
 
-                subPhase += twoPi * 45.0f * samplePeriod;
+                subPhase += twoPi * 44.0f * samplePeriod;
                 if (subPhase >= twoPi)
                     subPhase -= twoPi;
 
-                subEnv *= 0.99992f; // Long sustain
+                subEnv *= 0.99992f;
             }
 
-            // Soft-limit synthesized mix and add to both stereo channels
             if (synthSample != 0.0f)
             {
-                const float limitedSample = std::tanh(synthSample * 0.85f);
+                const float limited = std::tanh(synthSample * 0.85f);
                 for (int ch = 0; ch < numChannels; ++ch)
                 {
-                    buffer.addSample(ch, sampleIdx, limitedSample);
+                    buffer.addSample(ch, sampleIdx, limited);
                 }
             }
         }
@@ -200,6 +315,22 @@ private:
     float snareToneEnv { 0.0f };
     float snareNoiseEnv { 0.0f };
     juce::dsp::IIR::Filter<float> snareFilter;
+
+    // Clap State
+    float clapEnv { 0.0f };
+    int clapStep { 0 };
+    int clapTimer { 0 };
+    juce::dsp::IIR::Filter<float> clapFilter;
+
+    // Rim State
+    float rimEnv { 0.0f };
+    float rimPhase { 0.0f };
+    juce::dsp::IIR::Filter<float> rimFilter;
+
+    // Tom State
+    float tomEnv { 0.0f };
+    float tomPhase { 0.0f };
+    float tomFreq { 120.0f };
 
     // Hat State
     float hatEnv { 0.0f };
