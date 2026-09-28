@@ -44,11 +44,23 @@ public:
     juce::MidiKeyboardState& getKeyboardState() noexcept { return keyboardState; }
     float getGainReduction() const noexcept { return compressor.getGainReductionDb(); }
 
+    // Real-time Visualizer Buffer (Lock-free FIFO for scope)
+    static constexpr int visualizerBufferSize = 64;
+    void getVisualizerData(float* destinationBuffer) noexcept
+    {
+        for (int i = 0; i < visualizerBufferSize; ++i)
+            destinationBuffer[i] = visualizerFifo[i].load(std::memory_order_relaxed);
+    }
+
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;
+
+    // Visualizer atomic ring buffer
+    std::array<std::atomic<float>, visualizerBufferSize> visualizerFifo {};
+    int visualizerWriteIndex { 0 };
 
     // DSP Chain
     underground::dsp::DrumSynth drumSynth;

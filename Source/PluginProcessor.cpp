@@ -20,6 +20,9 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     vinylNoiseParam    = apvts.getRawParameterValue("vinylNoise");
     vinylDustParam     = apvts.getRawParameterValue("vinylDust");
     outputGainParam    = apvts.getRawParameterValue("outputGain");
+
+    for (auto& item : visualizerFifo)
+        item.store(0.0f, std::memory_order_relaxed);
 }
 
 SubdrumProcessorAudioProcessor::~SubdrumProcessorAudioProcessor() = default;
@@ -30,49 +33,49 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
 
     // 1. Tape Saturation
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "drive", 1 }, "Tape Drive",
+        juce::ParameterID { "drive", 1 }, "Drive",
         juce::NormalisableRange<float>(0.0f, 30.0f, 0.1f), 8.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "tapeMix", 1 }, "Tape Mix",
+        juce::ParameterID { "tapeMix", 1 }, "Drive Mix",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 100.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // 2. Sampler Lowpass Filter
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "cutoff", 1 }, "Filter Cutoff",
+        juce::ParameterID { "cutoff", 1 }, "Cutoff",
         juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 12500.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "resonance", 1 }, "Filter Resonance",
+        juce::ParameterID { "resonance", 1 }, "Resonance",
         juce::NormalisableRange<float>(0.1f, 6.0f, 0.05f), 0.707f,
         juce::AudioParameterFloatAttributes().withLabel("Q")));
 
     // 3. VCA Drum Compressor
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "compThreshold", 1 }, "Comp Threshold",
+        juce::ParameterID { "compThreshold", 1 }, "Threshold",
         juce::NormalisableRange<float>(-40.0f, 0.0f, 0.1f), -14.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "compRatio", 1 }, "Comp Ratio",
+        juce::ParameterID { "compRatio", 1 }, "Ratio",
         juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f), 4.0f,
         juce::AudioParameterFloatAttributes().withLabel(":1")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "compAttack", 1 }, "Comp Attack",
+        juce::ParameterID { "compAttack", 1 }, "Attack",
         juce::NormalisableRange<float>(0.1f, 50.0f, 0.1f, 0.35f), 4.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "compRelease", 1 }, "Comp Release",
+        juce::ParameterID { "compRelease", 1 }, "Release",
         juce::NormalisableRange<float>(10.0f, 400.0f, 1.0f, 0.4f), 55.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "compMakeup", 1 }, "Comp Makeup",
+        juce::ParameterID { "compMakeup", 1 }, "Makeup",
         juce::NormalisableRange<float>(-6.0f, 18.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
@@ -83,7 +86,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
 
     // 4. Vinyl & Dust Noise
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "vinylNoise", 1 }, "Vinyl Noise",
+        juce::ParameterID { "vinylNoise", 1 }, "Vinyl Hiss",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 12.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
@@ -193,11 +196,12 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     for (int i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    if (buffer.getNumSamples() == 0)
+    const int numSamples = buffer.getNumSamples();
+    if (numSamples == 0)
         return;
 
     // 1. Process Virtual/Computer Keyboard MIDI messages
-    keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+    keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
     // 2. Synthesize internal drum hits directly into buffer
     drumSynth.process(buffer, midiMessages);
@@ -225,20 +229,26 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     juce::dsp::AudioBlock<float> audioBlock(buffer);
     juce::dsp::ProcessContextReplacing<float> context(audioBlock);
 
-    // Stage 1: 4x Oversampled Tape Saturation
     tapeSaturation.process(context);
-
-    // Stage 2: Lo-Fi Sampler Resonant Reconstruction Filter
     samplerFilter.process(context);
-
-    // Stage 3: Aggressive VCA Transient Drum Compressor
     compressor.process(context);
-
-    // Stage 4: Vinyl Hiss & Crackle Noise Layer
     vinylNoise.process(context);
-
-    // Stage 5: Master Trim
     outputGain.process(context);
+
+    // 5. Calculate peak amplitude envelope for visualizer
+    float peakValue = 0.0f;
+    for (int ch = 0; ch < totalNumOutputChannels; ++ch)
+    {
+        const float* readPtr = buffer.getReadPointer(ch);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            peakValue = std::max(peakValue, std::abs(readPtr[i]));
+        }
+    }
+
+    // Push into ring buffer
+    visualizerFifo[visualizerWriteIndex].store(peakValue, std::memory_order_relaxed);
+    visualizerWriteIndex = (visualizerWriteIndex + 1) % visualizerBufferSize;
 }
 
 bool SubdrumProcessorAudioProcessor::hasEditor() const

@@ -6,48 +6,45 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
       audioProcessor(p),
       keyboardComponent(p.getKeyboardState(), juce::MidiKeyboardComponent::horizontalKeyboard)
 {
-    setLookAndFeel(&customLookAndFeel);
+    setLookAndFeel(&minimalistLookAndFeel);
 
-    // Setup DSP Rotary Controls
-    setupControl(driveKnob,       "drive",         "DRIVE",       " dB");
-    setupControl(tapeMixKnob,     "tapeMix",       "MIX",         " %");
+    // Row 1 Controls
+    setupControl(driveKnob,       "drive",         "Drive");
+    setupControl(tapeMixKnob,     "tapeMix",       "Mix");
+    setupControl(cutoffKnob,      "cutoff",        "Filter");
+    setupControl(resonanceKnob,   "resonance",     "Resonance");
 
-    setupControl(cutoffKnob,      "cutoff",        "CUTOFF",      " Hz");
-    setupControl(resonanceKnob,   "resonance",     "RESO",        " Q");
-
-    setupControl(compThreshKnob,  "compThreshold", "THRESH",      " dB");
-    setupControl(compRatioKnob,   "compRatio",     "RATIO",       ":1");
-    setupControl(compAttackKnob,  "compAttack",    "ATTACK",      " ms");
-    setupControl(compReleaseKnob, "compRelease",   "RELEASE",     " ms");
-    setupControl(compMakeupKnob,  "compMakeup",    "MAKEUP",      " dB");
-    setupControl(compMixKnob,     "compMix",       "COMP MIX",    " %");
-
-    setupControl(vinylNoiseKnob,  "vinylNoise",    "VINYL NOISE", " %");
-    setupControl(vinylDustKnob,   "vinylDust",     "DUST POPS",   " %");
-
-    setupControl(outputGainKnob,  "outputGain",    "OUTPUT TRIM", " dB");
+    // Row 2 Controls
+    setupControl(compThreshKnob,  "compThreshold", "Thresh");
+    setupControl(compAttackKnob,  "compAttack",    "Attack");
+    setupControl(compReleaseKnob, "compRelease",   "Decay");
+    setupControl(compMakeupKnob,  "compMakeup",    "Volume");
+    setupControl(vinylNoiseKnob,  "vinylNoise",    "Dust");
+    setupControl(outputGainKnob,  "outputGain",    "Master");
 
     // Setup Interactive Drum Pads
-    setupPad(kickPad,      "KICK\n[ A ]",       36);
-    setupPad(snarePad,     "SNARE\n[ S ]",      38);
-    setupPad(closedHatPad, "CLOSED HAT\n[ D ]", 42);
-    setupPad(openHatPad,   "OPEN HAT\n[ F ]",   46);
-    setupPad(subBassPad,   "SUB 808\n[ G ]",    48);
+    setupPad(kickPad,      "KICK [ A ]",       36);
+    setupPad(snarePad,     "SNARE [ S ]",      38);
+    setupPad(closedHatPad, "CLOSED HAT [ D ]", 42);
+    setupPad(openHatPad,   "OPEN HAT [ F ]",   46);
+    setupPad(subBassPad,   "SUB 808 [ G ]",    48);
 
     // Virtual Keyboard Setup
     keyboardComponent.setAvailableRange(36, 72);
     keyboardComponent.setOctaveForMiddleC(3);
     keyboardComponent.setKeyWidth(26.0f);
-    keyboardComponent.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, juce::Colour(0xFF262C34));
-    keyboardComponent.setColour(juce::MidiKeyboardComponent::blackNoteColourId, juce::Colour(0xFF14171A));
-    keyboardComponent.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId, juce::Colour(0xFFFF7A00));
-    keyboardComponent.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, juce::Colour(0x33FFA23A));
+    keyboardComponent.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, juce::Colour(0xFF1E2026));
+    keyboardComponent.setColour(juce::MidiKeyboardComponent::blackNoteColourId, juce::Colour(0xFF121316));
+    keyboardComponent.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId, juce::Colour(0xFFE5838B));
+    keyboardComponent.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, juce::Colour(0x33E5838B));
     keyboardComponent.setWantsKeyboardFocus(false);
     addAndMakeVisible(keyboardComponent);
 
-    // Add KeyListener to catch keyboard strokes
-    addKeyListener(this);
     setWantsKeyboardFocus(true);
+    addKeyListener(this);
+
+    // Initialize visualizer bar heights
+    visualizerBarHeights.fill(0.0f);
 
     setSize(940, 650);
     startTimerHz(30);
@@ -60,17 +57,17 @@ SubdrumProcessorAudioProcessorEditor::~SubdrumProcessorAudioProcessorEditor()
 }
 
 void SubdrumProcessorAudioProcessorEditor::setupControl(RotaryControl& control, const juce::String& paramID,
-                                                        const juce::String& labelText, const juce::String& suffix)
+                                                        const juce::String& labelText)
 {
     control.slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    control.slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 64, 18);
-    control.slider.setTextValueSuffix(suffix);
+    control.slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     control.slider.setWantsKeyboardFocus(false);
     addAndMakeVisible(control.slider);
 
     control.label.setText(labelText, juce::dontSendNotification);
     control.label.setJustificationType(juce::Justification::centred);
-    control.label.setFont(juce::FontOptions(11.5f, juce::Font::bold));
+    control.label.setFont(juce::FontOptions(13.0f, juce::Font::plain));
+    control.label.setColour(juce::Label::textColourId, juce::Colour(0xFFA6ABB6));
     control.label.setWantsKeyboardFocus(false);
     addAndMakeVisible(control.label);
 
@@ -81,10 +78,10 @@ void SubdrumProcessorAudioProcessorEditor::setupControl(RotaryControl& control, 
 void SubdrumProcessorAudioProcessorEditor::setupPad(juce::TextButton& button, const juce::String& text, int note)
 {
     button.setButtonText(text);
-    button.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF20252C));
-    button.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFFF7A00));
-    button.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFFFA23A));
-    button.setColour(juce::TextButton::textColourOnId, juce::Colour(0xFFFFFFFF));
+    button.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF181A20));
+    button.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFE5838B));
+    button.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFC8B6CD));
+    button.setColour(juce::TextButton::textColourOnId, juce::Colour(0xFF121316));
     button.setClickingTogglesState(false);
     button.setWantsKeyboardFocus(false);
 
@@ -102,6 +99,7 @@ void SubdrumProcessorAudioProcessorEditor::setupPad(juce::TextButton& button, co
 void SubdrumProcessorAudioProcessorEditor::triggerDrumVoice(int noteNumber)
 {
     audioProcessor.getKeyboardState().noteOn(1, noteNumber, 1.0f);
+    liveVisualizerPeak = 1.0f; // Instantly trigger visualizer transient
 }
 
 void SubdrumProcessorAudioProcessorEditor::releaseDrumVoice(int noteNumber)
@@ -168,179 +166,170 @@ bool SubdrumProcessorAudioProcessorEditor::keyStateChanged(bool isKeyDown, juce:
 
 void SubdrumProcessorAudioProcessorEditor::timerCallback()
 {
-    const float targetGr = audioProcessor.getGainReduction();
-    currentMeterGainReduction = currentMeterGainReduction * 0.7f + targetGr * 0.3f;
+    // Read audio buffer peaks
+    float audioPeak = 0.0f;
+    std::array<float, SubdrumProcessorAudioProcessor::visualizerBufferSize> bufferData;
+    audioProcessor.getVisualizerData(bufferData.data());
+
+    for (auto val : bufferData)
+        audioPeak = std::max(audioPeak, val);
+
+    liveVisualizerPeak = std::max(audioPeak, liveVisualizerPeak * 0.88f);
+
+    // Update decaying vertical bars
+    for (int i = 0; i < numVisualizerBars; ++i)
+    {
+        // Exponential decay envelope across bars matching the reference image
+        const float decayFactor = std::exp(-static_cast<float>(i) * 0.28f);
+        const float targetHeight = liveVisualizerPeak * decayFactor;
+        visualizerBarHeights[i] = visualizerBarHeights[i] * 0.72f + targetHeight * 0.28f;
+    }
+
     repaint();
 }
 
 void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    // Deep Charcoal Background
-    g.fillAll(juce::Colour(0xFF121417));
+    // 1. Deep Matte Dark Background (#121316)
+    g.fillAll(juce::Colour(0xFF121316));
 
-    // Header Area
-    g.setColour(juce::Colour(0xFF191D22));
-    g.fillRect(0, 0, getWidth(), 56);
+    // 2. Top Window Bar
+    g.setColour(juce::Colour(0xFF16171B));
+    g.fillRect(0, 0, getWidth(), 38);
 
-    g.setColour(juce::Colour(0xFFFF7A00));
-    g.fillRect(0, 54, getWidth(), 2);
+    // Minimalist macOS Traffic Light Dots
+    g.setColour(juce::Colour(0xFF2C2F36));
+    g.fillEllipse(20.0f, 14.0f, 10.0f, 10.0f);
+    g.fillEllipse(36.0f, 14.0f, 10.0f, 10.0f);
+    g.fillEllipse(52.0f, 14.0f, 10.0f, 10.0f);
 
-    // Title & Subtitle
-    g.setColour(juce::Colour(0xFFFFFFFF));
-    g.setFont(juce::FontOptions(18.0f, juce::Font::bold));
-    g.drawText("SUBDRUM PROCESSOR", 24, 8, 300, 22, juce::Justification::left);
+    // Minimalist Top Icons (Crescent icon on left & small dot-in-square on right)
+    g.setColour(juce::Colour(0xFFC8B6CD));
+    juce::Path crescent;
+    crescent.addEllipse(78.0f, 12.0f, 14.0f, 14.0f);
+    g.strokePath(crescent, juce::PathStrokeType(1.2f));
+    g.fillEllipse(82.0f, 12.0f, 10.0f, 14.0f);
 
-    g.setColour(juce::Colour(0xFF8C95A0));
-    g.setFont(juce::FontOptions(11.0f, juce::Font::plain));
-    g.drawText("UNDERGROUND 2-STEP / LO-FI DRUM ENGINE", 24, 30, 300, 16, juce::Justification::left);
+    g.setColour(juce::Colour(0xFF626670));
+    g.drawRoundedRectangle(static_cast<float>(getWidth() - 36), 12.0f, 14.0f, 14.0f, 3.0f, 1.2f);
+    g.fillEllipse(static_cast<float>(getWidth() - 30), 18.0f, 3.0f, 3.0f);
 
-    // Section Panels Helper
-    auto drawPanel = [&](juce::Rectangle<int> bounds, const juce::String& title)
+    // 3. Upper Visualizer Screen
+    auto screenBounds = juce::Rectangle<float>(20.0f, 48.0f, static_cast<float>(getWidth() - 40), 160.0f);
+    g.setColour(juce::Colour(0xFF15161A));
+    g.fillRoundedRectangle(screenBounds, 6.0f);
+
+    g.setColour(juce::Colour(0xFF22242B));
+    g.drawRoundedRectangle(screenBounds, 6.0f, 1.0f);
+
+    // Dotted Grid Lines
+    g.setColour(juce::Colour(0xFF262932));
+    const float gridSpacingX = screenBounds.getWidth() / 14.0f;
+    for (float x = screenBounds.getX() + gridSpacingX; x < screenBounds.getRight(); x += gridSpacingX)
     {
-        g.setColour(juce::Colour(0xFF181C21));
-        g.fillRoundedRectangle(bounds.toFloat(), 6.0f);
+        for (float y = screenBounds.getY() + 10.0f; y < screenBounds.getBottom(); y += 8.0f)
+        {
+            g.fillEllipse(x - 0.75f, y - 0.75f, 1.5f, 1.5f);
+        }
+    }
 
-        g.setColour(juce::Colour(0xFF262C34));
-        g.drawRoundedRectangle(bounds.toFloat(), 6.0f, 1.2f);
+    const float gridSpacingY = screenBounds.getHeight() / 5.0f;
+    for (float y = screenBounds.getY() + gridSpacingY; y < screenBounds.getBottom(); y += gridSpacingY)
+    {
+        for (float x = screenBounds.getX() + 10.0f; x < screenBounds.getRight(); x += 8.0f)
+        {
+            g.fillEllipse(x - 0.75f, y - 0.75f, 1.5f, 1.5f);
+        }
+    }
 
-        g.setColour(juce::Colour(0xFFFFA23A));
-        g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-        g.drawText(title, bounds.getX() + 14, bounds.getY() + 8, bounds.getWidth() - 28, 18, juce::Justification::left);
+    // Dashed Horizontal Zero-Crossing Center Line
+    const float centerY = screenBounds.getCentreY();
+    g.setColour(juce::Colour(0xFF4B4E58));
+    for (float x = screenBounds.getX() + 15.0f; x < screenBounds.getRight() - 15.0f; x += 10.0f)
+    {
+        g.fillRect(x, centerY - 0.6f, 6.0f, 1.2f);
+    }
 
-        g.setColour(juce::Colour(0xFF2E3540));
-        g.fillRect(bounds.getX() + 14, bounds.getY() + 28, bounds.getWidth() - 28, 1);
-    };
+    // Render Lavender Exponential Decay Bars (#C8B6CD)
+    g.setColour(juce::Colour(0xFFC8B6CD));
+    const float startX = screenBounds.getX() + 30.0f;
+    const float barWidth = 4.5f;
+    const float barGap = 4.0f;
+    const float maxBarHeight = 110.0f;
 
-    // Layout Panels
-    auto contentArea = getLocalBounds().reduced(16);
-    contentArea.removeFromTop(50);
-    contentArea.removeFromBottom(150); // Space for drum pads & keyboard
+    for (int i = 0; i < numVisualizerBars; ++i)
+    {
+        // Minimal idle height or live amplitude height
+        const float idleH = std::exp(-static_cast<float>(i) * 0.22f) * 60.0f + 2.0f;
+        const float barH = juce::jlimit(2.0f, maxBarHeight, idleH * 0.3f + visualizerBarHeights[i] * maxBarHeight);
 
-    auto topRow = contentArea.removeFromTop(185);
-    contentArea.removeFromTop(10);
-    auto bottomRow = contentArea;
+        const float barX = startX + i * (barWidth + barGap);
+        if (barX + barWidth > screenBounds.getRight() - 20.0f)
+            break;
 
-    auto tapeArea = topRow.removeFromLeft(450);
-    topRow.removeFromLeft(10);
-    auto filterArea = topRow;
+        const float barY = centerY - (barH * 0.5f);
+        g.fillRoundedRectangle(barX, barY, barWidth, barH, 2.0f);
+    }
 
-    auto compArea = bottomRow.removeFromLeft(570);
-    bottomRow.removeFromLeft(10);
-    auto vinylArea = bottomRow;
-
-    drawPanel(tapeArea, "1. TAPE DRIVE  [4X OVERSAMPLED]");
-    drawPanel(filterArea, "2. SAMPLER FILTER  [LO-FI ROLLOFF]");
-    drawPanel(compArea, "3. VCA TRANSIENT COMPRESSOR");
-    drawPanel(vinylArea, "4. TEXTURE & MASTER");
-
-    // Draw Gain Reduction Meter in Compressor panel
-    auto meterBounds = juce::Rectangle<int>(compArea.getX() + compArea.getWidth() - 140, compArea.getY() + 8, 120, 14);
-    g.setColour(juce::Colour(0xFF121417));
-    g.fillRoundedRectangle(meterBounds.toFloat(), 3.0f);
-    g.setColour(juce::Colour(0xFF323842));
-    g.drawRoundedRectangle(meterBounds.toFloat(), 3.0f, 1.0f);
-
-    float grProportion = juce::jlimit(0.0f, 1.0f, currentMeterGainReduction / 24.0f);
-    auto fillMeter = meterBounds.reduced(2);
-    fillMeter.setWidth(static_cast<int>(fillMeter.getWidth() * grProportion));
-    g.setColour(juce::Colour(0xFFFF5533));
-    g.fillRoundedRectangle(fillMeter.toFloat(), 2.0f);
-
-    g.setColour(juce::Colour(0xFF909AA4));
-    g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
-    g.drawText(juce::String::formatted("GR: -%.1f dB", currentMeterGainReduction),
-               meterBounds.getX() - 75, meterBounds.getY(), 70, 14, juce::Justification::right);
-
-    // Drum Pads & Keyboard Section Header
-    auto padSectionArea = getLocalBounds().reduced(16).removeFromBottom(145);
-    g.setColour(juce::Colour(0xFF181C21));
-    g.fillRoundedRectangle(padSectionArea.toFloat(), 6.0f);
-    g.setColour(juce::Colour(0xFF262C34));
-    g.drawRoundedRectangle(padSectionArea.toFloat(), 6.0f, 1.0f);
-
-    g.setColour(juce::Colour(0xFFFFA23A));
-    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    g.drawText("LIVE DRUM PADS & MAC KEYBOARD TRIGGER:", padSectionArea.getX() + 12, padSectionArea.getY() + 6, 350, 18, juce::Justification::left);
-
-    g.setColour(juce::Colour(0xFF6EC6FF));
-    g.setFont(juce::FontOptions(10.5f, juce::Font::plain));
-    g.drawText("Presiona las teclas [A, S, D, F, G] en tu Mac o haz clic en los pads para escuchar",
-               padSectionArea.getX() + 360, padSectionArea.getY() + 6, padSectionArea.getWidth() - 375, 18, juce::Justification::right);
+    // Drum Pads & Keyboard Section Outline
+    auto bottomSection = juce::Rectangle<float>(20.0f, static_cast<float>(getHeight() - 130),
+                                                static_cast<float>(getWidth() - 40), 115.0f);
+    g.setColour(juce::Colour(0xFF16171B));
+    g.fillRoundedRectangle(bottomSection, 6.0f);
+    g.setColour(juce::Colour(0xFF22242B));
+    g.drawRoundedRectangle(bottomSection, 6.0f, 1.0f);
 }
 
 void SubdrumProcessorAudioProcessorEditor::resized()
 {
-    auto contentArea = getLocalBounds().reduced(16);
-    contentArea.removeFromTop(50);
+    // Layout area for knobs
+    const int knobsAreaTop = 220;
+    const int rowHeight = 135;
 
-    auto padSectionArea = contentArea.removeFromBottom(145);
-    contentArea.removeFromBottom(10);
-
-    auto topRow = contentArea.removeFromTop(185);
-    contentArea.removeFromTop(10);
-    auto bottomRow = contentArea;
-
+    // Row 1: 4 Knobs (Drive, Mix, Filter, Resonance)
     auto placeKnob = [](RotaryControl& ctrl, juce::Rectangle<int> box)
     {
-        ctrl.label.setBounds(box.removeFromTop(16));
-        ctrl.slider.setBounds(box);
+        auto labelBox = box.removeFromBottom(22);
+        ctrl.label.setBounds(labelBox);
+        ctrl.slider.setBounds(box.reduced(8));
     };
 
-    // 1. Tape Section
-    auto tapeArea = topRow.removeFromLeft(450);
-    topRow.removeFromLeft(10);
-    auto tapeContent = tapeArea.reduced(14).withTrimmedTop(22);
-    int tapeColW = tapeContent.getWidth() / 2;
+    const int row1Y = knobsAreaTop;
+    const int numRow1 = 4;
+    const int knobWidth1 = (getWidth() - 40) / numRow1;
 
-    placeKnob(driveKnob, tapeContent.removeFromLeft(tapeColW).reduced(10, 0));
-    placeKnob(tapeMixKnob, tapeContent.reduced(10, 0));
+    placeKnob(driveKnob,     juce::Rectangle<int>(20 + 0 * knobWidth1, row1Y, knobWidth1, rowHeight));
+    placeKnob(tapeMixKnob,   juce::Rectangle<int>(20 + 1 * knobWidth1, row1Y, knobWidth1, rowHeight));
+    placeKnob(cutoffKnob,    juce::Rectangle<int>(20 + 2 * knobWidth1, row1Y, knobWidth1, rowHeight));
+    placeKnob(resonanceKnob, juce::Rectangle<int>(20 + 3 * knobWidth1, row1Y, knobWidth1, rowHeight));
 
-    // 2. Filter Section
-    auto filterArea = topRow;
-    auto filterContent = filterArea.reduced(14).withTrimmedTop(22);
-    int filterColW = filterContent.getWidth() / 2;
+    // Row 2: 6 Knobs (Thresh, Attack, Decay, Volume, Dust, Master)
+    const int row2Y = knobsAreaTop + rowHeight + 10;
+    const int numRow2 = 6;
+    const int knobWidth2 = (getWidth() - 40) / numRow2;
 
-    placeKnob(cutoffKnob, filterContent.removeFromLeft(filterColW).reduced(10, 0));
-    placeKnob(resonanceKnob, filterContent.reduced(10, 0));
+    placeKnob(compThreshKnob,  juce::Rectangle<int>(20 + 0 * knobWidth2, row2Y, knobWidth2, rowHeight));
+    placeKnob(compAttackKnob,  juce::Rectangle<int>(20 + 1 * knobWidth2, row2Y, knobWidth2, rowHeight));
+    placeKnob(compReleaseKnob, juce::Rectangle<int>(20 + 2 * knobWidth2, row2Y, knobWidth2, rowHeight));
+    placeKnob(compMakeupKnob,  juce::Rectangle<int>(20 + 3 * knobWidth2, row2Y, knobWidth2, rowHeight));
+    placeKnob(vinylNoiseKnob,  juce::Rectangle<int>(20 + 4 * knobWidth2, row2Y, knobWidth2, rowHeight));
+    placeKnob(outputGainKnob,  juce::Rectangle<int>(20 + 5 * knobWidth2, row2Y, knobWidth2, rowHeight));
 
-    // 3. Compressor Section
-    auto compArea = bottomRow.removeFromLeft(570);
-    bottomRow.removeFromLeft(10);
-    auto compContent = compArea.reduced(12).withTrimmedTop(22);
-    int compColW = compContent.getWidth() / 6;
+    // Bottom Pads & Keyboard
+    auto bottomArea = juce::Rectangle<int>(20, getHeight() - 130, getWidth() - 40, 115).reduced(10);
+    auto padsRow = bottomArea.removeFromTop(38);
+    const int padW = (padsRow.getWidth() - 32) / 5;
 
-    placeKnob(compThreshKnob,  compContent.removeFromLeft(compColW).reduced(4, 0));
-    placeKnob(compRatioKnob,   compContent.removeFromLeft(compColW).reduced(4, 0));
-    placeKnob(compAttackKnob,  compContent.removeFromLeft(compColW).reduced(4, 0));
-    placeKnob(compReleaseKnob, compContent.removeFromLeft(compColW).reduced(4, 0));
-    placeKnob(compMakeupKnob,  compContent.removeFromLeft(compColW).reduced(4, 0));
-    placeKnob(compMixKnob,     compContent.reduced(4, 0));
+    kickPad.setBounds(padsRow.removeFromLeft(padW));
+    padsRow.removeFromLeft(8);
+    snarePad.setBounds(padsRow.removeFromLeft(padW));
+    padsRow.removeFromLeft(8);
+    closedHatPad.setBounds(padsRow.removeFromLeft(padW));
+    padsRow.removeFromLeft(8);
+    openHatPad.setBounds(padsRow.removeFromLeft(padW));
+    padsRow.removeFromLeft(8);
+    subBassPad.setBounds(padsRow);
 
-    // 4. Vinyl & Master Section
-    auto vinylArea = bottomRow;
-    auto vinylContent = vinylArea.reduced(12).withTrimmedTop(22);
-    int vinylColW = vinylContent.getWidth() / 3;
-
-    placeKnob(vinylNoiseKnob,  vinylContent.removeFromLeft(vinylColW).reduced(4, 0));
-    placeKnob(vinylDustKnob,   vinylContent.removeFromLeft(vinylColW).reduced(4, 0));
-    placeKnob(outputGainKnob,  vinylContent.reduced(4, 0));
-
-    // 5. Drum Pads Row
-    auto padsRow = padSectionArea.reduced(12).withTrimmedTop(20);
-    auto padsOnlyRow = padsRow.removeFromTop(44);
-    int padW = (padsOnlyRow.getWidth() - 32) / 5;
-
-    kickPad.setBounds(padsOnlyRow.removeFromLeft(padW));
-    padsOnlyRow.removeFromLeft(8);
-    snarePad.setBounds(padsOnlyRow.removeFromLeft(padW));
-    padsOnlyRow.removeFromLeft(8);
-    closedHatPad.setBounds(padsOnlyRow.removeFromLeft(padW));
-    padsOnlyRow.removeFromLeft(8);
-    openHatPad.setBounds(padsOnlyRow.removeFromLeft(padW));
-    padsOnlyRow.removeFromLeft(8);
-    subBassPad.setBounds(padsOnlyRow);
-
-    // 6. Virtual MIDI Keyboard
-    padsRow.removeFromTop(6);
-    keyboardComponent.setBounds(padsRow);
+    bottomArea.removeFromTop(6);
+    keyboardComponent.setBounds(bottomArea);
 }
