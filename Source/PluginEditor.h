@@ -11,14 +11,13 @@ class IndustrialDotMatrixLookAndFeel : public juce::LookAndFeel_V4
 public:
     IndustrialDotMatrixLookAndFeel()
     {
-        setColour(juce::Slider::rotarySliderFillColourId, juce::Colour(0xFFFF3B30)); // Red accent
+        setColour(juce::Slider::rotarySliderFillColourId, juce::Colour(0xFFFF3B30));
         setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour(0xFFB8BBC2));
         setColour(juce::Slider::thumbColourId, juce::Colour(0xFFFF3B30));
         setColour(juce::Slider::textBoxTextColourId, juce::Colour(0xFF14161A));
         setColour(juce::Slider::textBoxOutlineColourId, juce::Colour(0x00000000));
         setColour(juce::Label::textColourId, juce::Colour(0xFF14161A));
 
-        // Combo Box styling for presets
         setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xFF14161A));
         setColour(juce::ComboBox::textColourId, juce::Colour(0xFFEDEDF0));
         setColour(juce::ComboBox::outlineColourId, juce::Colour(0xFF323640));
@@ -66,7 +65,7 @@ public:
         g.setColour(juce::Colour(0xFFFF3B30));
         g.fillEllipse(redDotPos.x - 2.5f, redDotPos.y - 2.5f, 5.0f, 5.0f);
 
-        // 4. Center Rotor Hub (Industrial 3-Spoke Black Aperture)
+        // 4. Center Rotor Hub
         auto innerRadius = outerRadius * 0.46f;
         g.setColour(juce::Colour(0xFF14161A));
         g.fillEllipse(centre.x - innerRadius, centre.y - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
@@ -112,7 +111,6 @@ private:
 
     void setupControl(RotaryControl& control, const juce::String& paramID, const juce::String& labelText);
     void setupPad(juce::TextButton& button, const juce::String& text, int note, juce::Colour baseColor, juce::Colour textCol);
-    void updatePresetSelector();
 
     SubdrumProcessorAudioProcessor& audioProcessor;
     IndustrialDotMatrixLookAndFeel industrialLookAndFeel;
@@ -140,13 +138,13 @@ private:
     RotaryControl outputGainKnob;
 
     // Interactive Drum Pads (8 Pads)
-    juce::TextButton kickPad;
-    juce::TextButton rimPad;
-    juce::TextButton snarePad;
+    juce::TextButton kick1Pad;
+    juce::TextButton kick2Pad;
+    juce::TextButton snare1Pad;
+    juce::TextButton snare2Pad;
     juce::TextButton clapPad;
     juce::TextButton closedHatPad;
     juce::TextButton openHatPad;
-    juce::TextButton lowTomPad;
     juce::TextButton subBassPad;
 
     // Virtual MIDI Keyboard Component

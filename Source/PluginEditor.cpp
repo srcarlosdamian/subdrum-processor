@@ -41,13 +41,13 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     setupControl(outputGainKnob,  "outputGain",    "Master");
 
     // Setup Interactive Performance Pads (8 Pads)
-    setupPad(kickPad,      "KICK\n[ A ]",       36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
-    setupPad(rimPad,       "RIM\n[ W ]",        37, juce::Colour(0xFFC8BDAA), juce::Colour(0xFF14161A)); // Light Taupe
-    setupPad(snarePad,     "SNARE\n[ S ]",      38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
-    setupPad(clapPad,      "CLAP\n[ E ]",       39, juce::Colour(0xFFB3B1FF), juce::Colour(0xFF14161A)); // Lavender
+    setupPad(kick1Pad,     "KICK 1\n[ A ]",     36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
+    setupPad(kick2Pad,     "KICK 2\n[ W ]",     37, juce::Colour(0xFFC8BDAA), juce::Colour(0xFF14161A)); // Light Taupe
+    setupPad(snare1Pad,    "SNARE 1\n[ S ]",    38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
+    setupPad(snare2Pad,    "SNARE 2\n[ D ]",    40, juce::Colour(0xFFB3B1FF), juce::Colour(0xFF14161A)); // Lavender
+    setupPad(clapPad,      "CLAP\n[ E ]",       39, juce::Colour(0xFF72B0A8), juce::Colour(0xFF14161A)); // Muted Teal
     setupPad(closedHatPad, "CL. HAT\n[ T ]",    42, juce::Colour(0xFF87A996), juce::Colour(0xFF14161A)); // Sage Green
     setupPad(openHatPad,   "OP. HAT\n[ U ]",    46, juce::Colour(0xFFFF8EE2), juce::Colour(0xFF14161A)); // Pink
-    setupPad(lowTomPad,    "TOM\n[ F ]",        41, juce::Colour(0xFF72B0A8), juce::Colour(0xFF14161A)); // Muted Teal
     setupPad(subBassPad,   "SUB 808\n[ K ]",    48, juce::Colour(0xFF16181C), juce::Colour(0xFFEDEDF0)); // Rotor Black
 
     // Virtual Keyboard Setup
@@ -147,81 +147,45 @@ bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key,
 
     int noteToPlay = -1;
 
-    // Standard Performance Keyboard mapping
     if (keyChar == 'a' || keyCode == 'A')
     {
         noteToPlay = 36 + octaveOffset;
-        kickPad.setState(juce::Button::buttonDown);
+        kick1Pad.setState(juce::Button::buttonDown);
     }
     else if (keyChar == 'w' || keyCode == 'W')
     {
         noteToPlay = 37 + octaveOffset;
-        rimPad.setState(juce::Button::buttonDown);
+        kick2Pad.setState(juce::Button::buttonDown);
     }
     else if (keyChar == 's' || keyCode == 'S')
     {
         noteToPlay = 38 + octaveOffset;
-        snarePad.setState(juce::Button::buttonDown);
+        snare1Pad.setState(juce::Button::buttonDown);
+    }
+    else if (keyChar == 'd' || keyCode == 'D')
+    {
+        noteToPlay = 40 + octaveOffset;
+        snare2Pad.setState(juce::Button::buttonDown);
     }
     else if (keyChar == 'e' || keyCode == 'E')
     {
         noteToPlay = 39 + octaveOffset;
         clapPad.setState(juce::Button::buttonDown);
     }
-    else if (keyChar == 'd' || keyCode == 'D')
-    {
-        noteToPlay = 40 + octaveOffset;
-        snarePad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'f' || keyCode == 'F')
-    {
-        noteToPlay = 41 + octaveOffset;
-        lowTomPad.setState(juce::Button::buttonDown);
-    }
     else if (keyChar == 't' || keyCode == 'T')
     {
         noteToPlay = 42 + octaveOffset;
         closedHatPad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'g' || keyCode == 'G')
-    {
-        noteToPlay = 43 + octaveOffset;
-        lowTomPad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'y' || keyCode == 'Y')
-    {
-        noteToPlay = 44 + octaveOffset;
-        closedHatPad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'h' || keyCode == 'H')
-    {
-        noteToPlay = 45 + octaveOffset;
-        lowTomPad.setState(juce::Button::buttonDown);
     }
     else if (keyChar == 'u' || keyCode == 'U')
     {
         noteToPlay = 46 + octaveOffset;
         openHatPad.setState(juce::Button::buttonDown);
     }
-    else if (keyChar == 'j' || keyCode == 'J')
-    {
-        noteToPlay = 47 + octaveOffset;
-        lowTomPad.setState(juce::Button::buttonDown);
-    }
     else if (keyChar == 'k' || keyCode == 'K')
     {
         noteToPlay = 48 + octaveOffset;
         subBassPad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'o' || keyCode == 'O')
-    {
-        noteToPlay = 49 + octaveOffset;
-        openHatPad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'l' || keyCode == 'L')
-    {
-        noteToPlay = 50 + octaveOffset;
-        closedHatPad.setState(juce::Button::buttonDown);
     }
 
     if (noteToPlay != -1)
@@ -237,13 +201,13 @@ bool SubdrumProcessorAudioProcessorEditor::keyStateChanged(bool isKeyDown, juce:
 {
     if (!isKeyDown)
     {
-        kickPad.setState(juce::Button::buttonNormal);
-        rimPad.setState(juce::Button::buttonNormal);
-        snarePad.setState(juce::Button::buttonNormal);
+        kick1Pad.setState(juce::Button::buttonNormal);
+        kick2Pad.setState(juce::Button::buttonNormal);
+        snare1Pad.setState(juce::Button::buttonNormal);
+        snare2Pad.setState(juce::Button::buttonNormal);
         clapPad.setState(juce::Button::buttonNormal);
         closedHatPad.setState(juce::Button::buttonNormal);
         openHatPad.setState(juce::Button::buttonNormal);
-        lowTomPad.setState(juce::Button::buttonNormal);
         subBassPad.setState(juce::Button::buttonNormal);
 
         audioProcessor.getKeyboardState().allNotesOff(1);
@@ -269,7 +233,6 @@ void SubdrumProcessorAudioProcessorEditor::timerCallback()
         visualizerBarHeights[i] = visualizerBarHeights[i] * 0.72f + targetHeight * 0.28f;
     }
 
-    // Keep preset selector synced with processor
     if (presetComboBox.getSelectedId() != audioProcessor.getCurrentProgram() + 1)
         presetComboBox.setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
 
@@ -292,7 +255,7 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
         }
     }
 
-    // 3. Header Branding (Clean Brutalist Typography)
+    // 3. Header Branding
     g.setColour(juce::Colour(0xFF101216));
     g.setFont(juce::FontOptions(26.0f, juce::Font::bold));
     g.drawText("Subdrum", 24, 12, 160, 26, juce::Justification::left);
@@ -414,19 +377,19 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     const int numPads = 8;
     const int padW = (padsRow.getWidth() - ((numPads - 1) * 6)) / numPads;
 
-    kickPad.setBounds(padsRow.removeFromLeft(padW));
+    kick1Pad.setBounds(padsRow.removeFromLeft(padW));
     padsRow.removeFromLeft(6);
-    rimPad.setBounds(padsRow.removeFromLeft(padW));
+    kick2Pad.setBounds(padsRow.removeFromLeft(padW));
     padsRow.removeFromLeft(6);
-    snarePad.setBounds(padsRow.removeFromLeft(padW));
+    snare1Pad.setBounds(padsRow.removeFromLeft(padW));
+    padsRow.removeFromLeft(6);
+    snare2Pad.setBounds(padsRow.removeFromLeft(padW));
     padsRow.removeFromLeft(6);
     clapPad.setBounds(padsRow.removeFromLeft(padW));
     padsRow.removeFromLeft(6);
     closedHatPad.setBounds(padsRow.removeFromLeft(padW));
     padsRow.removeFromLeft(6);
     openHatPad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(6);
-    lowTomPad.setBounds(padsRow.removeFromLeft(padW));
     padsRow.removeFromLeft(6);
     subBassPad.setBounds(padsRow);
 

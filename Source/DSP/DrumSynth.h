@@ -8,10 +8,15 @@ namespace underground::dsp
 {
 
 /**
- * @brief Precision drum synthesizer calibrated from exact spectrograms:
- *        - Note 36 (Key 'A'): Kick (Sub-heavy 52Hz fundamental, 130Hz transient)
- *        - Note 38 (Key 'S'): Snare 1 (Image 2: 195Hz body + 3-8kHz dense lo-fi sizzle)
- *        - Note 40 (Key 'D'): Snare 2 (Image 3: 215Hz resonant body + 7-10kHz high crack)
+ * @brief Precision drum synthesizer with calibrated voices from spectrograms:
+ *        - Note 36 (Key 'A'): Kick 1 (Deep Sub 52Hz fundamental, 0.65s tail)
+ *        - Note 35 / 37 (Key 'W'): Kick 2 (Punchy 64Hz body + 6-8kHz slap beater transient)
+ *        - Note 38 (Key 'S'): Snare 1 (195Hz body + 3-8kHz wide sizzle)
+ *        - Note 40 (Key 'D'): Snare 2 (215Hz body + 7-10kHz high crack)
+ *        - Note 39 (Key 'E'): Hand Clap
+ *        - Note 42 (Key 'T'): Closed Hi-Hat
+ *        - Note 46 (Key 'U'): Open Hi-Hat
+ *        - Note 48 (Key 'K'): Sub 808
  */
 class DrumSynth
 {
@@ -23,20 +28,30 @@ public:
     {
         sampleRate = spec.sampleRate;
 
-        kickClickFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 3500.0f, 0.707f);
-        kickClickFilter.reset();
+        // Kick 1 click
+        kick1ClickFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 3500.0f, 0.707f);
+        kick1ClickFilter.reset();
 
-        // Snare 1 Filters (Image 2: wide mid-high textured band)
+        // Kick 2 beater click (hot slap burst around 6.5 - 9 kHz)
+        kick2SlapFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 7200.0f, 1.2f);
+        kick2SlapFilter.reset();
+
+        // Snare 1 Filter (wide mid-high textured band)
         snare1Filter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 4500.0f, 0.9f);
         snare1Filter.reset();
 
-        // Snare 2 Filters (Image 3: focused high crack around 7.5 kHz)
+        // Snare 2 Filters (focused high crack)
         snare2Filter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 6200.0f, 1.4f);
         snare2Filter.reset();
 
         snare2MidFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1200.0f, 1.8f);
         snare2MidFilter.reset();
 
+        // Clap Filter
+        clapFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1400.0f, 1.4f);
+        clapFilter.reset();
+
+        // Hat Filter
         hatFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 7000.0f, 1.2f);
         hatFilter.reset();
 
@@ -45,10 +60,17 @@ public:
 
     void reset()
     {
-        kickPhase = 0.0f;
-        kickEnv = 0.0f;
-        kickPitchEnv = 0.0f;
-        kickClickEnv = 0.0f;
+        // Kick 1
+        kick1Phase = 0.0f;
+        kick1Env = 0.0f;
+        kick1PitchEnv = 0.0f;
+        kick1ClickEnv = 0.0f;
+
+        // Kick 2
+        kick2Phase = 0.0f;
+        kick2Env = 0.0f;
+        kick2PitchEnv = 0.0f;
+        kick2SlapEnv = 0.0f;
 
         // Snare 1
         snare1Phase = 0.0f;
@@ -60,15 +82,21 @@ public:
         snare2ToneEnv = 0.0f;
         snare2NoiseEnv = 0.0f;
 
+        clapEnv = 0.0f;
+        clapStep = 0;
+        clapTimer = 0;
+
         hatEnv = 0.0f;
         hatDecayRate = 0.999f;
         subPhase = 0.0f;
         subEnv = 0.0f;
 
-        kickClickFilter.reset();
+        kick1ClickFilter.reset();
+        kick2SlapFilter.reset();
         snare1Filter.reset();
         snare2Filter.reset();
         snare2MidFilter.reset();
+        clapFilter.reset();
         hatFilter.reset();
 
         rngState = 0x98765432;
@@ -89,26 +117,37 @@ public:
 
             switch (note)
             {
-                case 35:
-                case 36: // C1 (Key 'A') - Image 1: Kick
-                    kickEnv = vel * 1.25f;
-                    kickPitchEnv = 1.0f;
-                    kickClickEnv = vel * 0.8f;
-                    kickPhase = 0.0f;
+                case 36: // C1 (Key 'A') - Kick 1: Deep Sub 52Hz
+                    kick1Env = vel * 1.25f;
+                    kick1PitchEnv = 1.0f;
+                    kick1ClickEnv = vel * 0.8f;
+                    kick1Phase = 0.0f;
                     break;
 
-                case 38: // D1 (Key 'S') - Image 2: Snare 1
+                case 35:
+                case 37: // C#1 (Key 'W') - Kick 2: Punchy 64Hz + 7kHz slap transient
+                    kick2Env = vel * 1.3f;
+                    kick2PitchEnv = 1.0f;
+                    kick2SlapEnv = vel * 1.1f;
+                    kick2Phase = 0.0f;
+                    break;
+
+                case 38: // D1 (Key 'S') - Snare 1: 195Hz + 4.5kHz sizzle
                     snare1ToneEnv = vel * 1.0f;
                     snare1NoiseEnv = vel * 1.15f;
                     snare1Phase = 0.0f;
                     break;
 
-                case 37: // C#1 (Key 'W')
-                case 39: // D#1 (Key 'E')
-                case 40: // E1 (Key 'D') - Image 3: Snare 2
+                case 40: // E1 (Key 'D') - Snare 2: 215Hz + 7.5kHz crack
                     snare2ToneEnv = vel * 0.95f;
                     snare2NoiseEnv = vel * 1.2f;
                     snare2Phase = 0.0f;
+                    break;
+
+                case 39: // D#1 (Key 'E') - Hand Clap
+                    clapEnv = vel * 1.0f;
+                    clapStep = 0;
+                    clapTimer = 0;
                     break;
 
                 case 42: // F#1 (Key 'T') - Closed Hat
@@ -148,11 +187,11 @@ public:
         const float twoPi = juce::MathConstants<float>::twoPi;
         const float samplePeriod = 1.0f / static_cast<float>(sampleRate);
 
-        const float kickDecayCoef = std::exp(-1.0f / (0.65f * static_cast<float>(sampleRate) * 0.35f));
+        const float kick1DecayCoef = std::exp(-1.0f / (0.65f * static_cast<float>(sampleRate) * 0.35f));
+        const float kick2DecayCoef = std::exp(-1.0f / (0.38f * static_cast<float>(sampleRate) * 0.45f)); // Tighter punchy decay
         const float pitchDecayCoef = std::exp(-1.0f / (0.024f * static_cast<float>(sampleRate)));
-        const float clickDecayCoef = std::exp(-1.0f / (0.004f * static_cast<float>(sampleRate)));
+        const float slapDecayCoef = std::exp(-1.0f / (0.018f * static_cast<float>(sampleRate))); // 18ms slap burst
 
-        // Snare decay rates calibrated to ~0.20s
         const float snareToneDecay = std::exp(-1.0f / (0.12f * static_cast<float>(sampleRate)));
         const float snareNoiseDecay = std::exp(-1.0f / (0.19f * static_cast<float>(sampleRate)));
 
@@ -166,32 +205,57 @@ public:
 
             float synthSample = 0.0f;
 
-            // 1. Kick Voice (Image 1)
-            if (kickEnv > 1.0e-4f)
+            // 1. Kick 1 Voice (Deep 52 Hz)
+            if (kick1Env > 1.0e-4f)
             {
-                const float kickFreq = 52.0f + 80.0f * (kickPitchEnv * kickPitchEnv);
-                const float bodySine = std::sin(kickPhase) * kickEnv;
+                const float kickFreq = 52.0f + 80.0f * (kick1PitchEnv * kick1PitchEnv);
+                const float bodySine = std::sin(kick1Phase) * kick1Env;
                 const float warmBody = bodySine + 0.15f * (bodySine * bodySine) * (bodySine > 0.0f ? 1.0f : -1.0f);
 
                 float clickSample = 0.0f;
-                if (kickClickEnv > 1.0e-3f)
+                if (kick1ClickEnv > 1.0e-3f)
                 {
                     const float rawClick = nextRandomFloat() * 2.0f - 1.0f;
-                    clickSample = kickClickFilter.processSample(rawClick) * kickClickEnv * 0.45f;
-                    kickClickEnv *= clickDecayCoef;
+                    clickSample = kick1ClickFilter.processSample(rawClick) * kick1ClickEnv * 0.45f;
+                    kick1ClickEnv *= pitchDecayCoef;
                 }
 
                 synthSample += (warmBody * 1.35f + clickSample);
 
-                kickPhase += twoPi * kickFreq * samplePeriod;
-                if (kickPhase >= twoPi)
-                    kickPhase -= twoPi;
+                kick1Phase += twoPi * kickFreq * samplePeriod;
+                if (kick1Phase >= twoPi)
+                    kick1Phase -= twoPi;
 
-                kickEnv *= kickDecayCoef;
-                kickPitchEnv *= pitchDecayCoef;
+                kick1Env *= kick1DecayCoef;
+                kick1PitchEnv *= pitchDecayCoef;
             }
 
-            // 2. Snare 1 Voice (Image 2: 195 Hz body + 3-8 kHz dense sizzle)
+            // 2. Kick 2 Voice (Punchy 64 Hz + 7 kHz Slap Transient)
+            if (kick2Env > 1.0e-4f)
+            {
+                const float kickFreq = 64.0f + 110.0f * (kick2PitchEnv * kick2PitchEnv);
+                const float bodySine = std::sin(kick2Phase) * kick2Env;
+                const float warmBody = bodySine + 0.20f * (bodySine * bodySine) * (bodySine > 0.0f ? 1.0f : -1.0f);
+
+                float slapSample = 0.0f;
+                if (kick2SlapEnv > 1.0e-3f)
+                {
+                    const float rawClick = nextRandomFloat() * 2.0f - 1.0f;
+                    slapSample = kick2SlapFilter.processSample(rawClick) * kick2SlapEnv * 0.85f;
+                    kick2SlapEnv *= slapDecayCoef;
+                }
+
+                synthSample += (warmBody * 1.4f + slapSample);
+
+                kick2Phase += twoPi * kickFreq * samplePeriod;
+                if (kick2Phase >= twoPi)
+                    kick2Phase -= twoPi;
+
+                kick2Env *= kick2DecayCoef;
+                kick2PitchEnv *= pitchDecayCoef;
+            }
+
+            // 3. Snare 1 Voice (195 Hz + 4.5 kHz)
             if (snare1ToneEnv > 1.0e-4f || snare1NoiseEnv > 1.0e-4f)
             {
                 const float tone = std::sin(snare1Phase) * snare1ToneEnv * 0.75f;
@@ -208,7 +272,7 @@ public:
                 snare1NoiseEnv *= snareNoiseDecay;
             }
 
-            // 3. Snare 2 Voice (Image 3: 215 Hz body + 7-10 kHz high crack)
+            // 4. Snare 2 Voice (215 Hz + 7.5 kHz Crack)
             if (snare2ToneEnv > 1.0e-4f || snare2NoiseEnv > 1.0e-4f)
             {
                 const float tone = std::sin(snare2Phase) * snare2ToneEnv * 0.7f;
@@ -226,7 +290,26 @@ public:
                 snare2NoiseEnv *= (snareNoiseDecay * 0.9997f);
             }
 
-            // 4. Hi-Hat & Sub
+            // 5. Hand Clap
+            if (clapEnv > 1.0e-4f)
+            {
+                clapTimer++;
+                const int burstSamples = static_cast<int>(sampleRate * 0.011f);
+                if (clapStep < 3 && clapTimer > burstSamples)
+                {
+                    clapTimer = 0;
+                    clapStep++;
+                    clapEnv = 0.9f;
+                }
+
+                const float rawNoise = nextRandomFloat() * 2.0f - 1.0f;
+                const float filteredClap = clapFilter.processSample(rawNoise) * clapEnv * 1.1f;
+                synthSample += filteredClap;
+
+                clapEnv *= 0.9994f;
+            }
+
+            // 6. Hi-Hat & Sub
             if (hatEnv > 1.0e-4f)
             {
                 const float noise = nextRandomFloat() * 2.0f - 1.0f;
@@ -266,32 +349,45 @@ private:
     double sampleRate { 44100.0 };
     uint32_t rngState { 0x98765432 };
 
-    // Kick State (Image 1)
-    float kickPhase { 0.0f };
-    float kickEnv { 0.0f };
-    float kickPitchEnv { 0.0f };
-    float kickClickEnv { 0.0f };
-    juce::dsp::IIR::Filter<float> kickClickFilter;
+    // Kick 1
+    float kick1Phase { 0.0f };
+    float kick1Env { 0.0f };
+    float kick1PitchEnv { 0.0f };
+    float kick1ClickEnv { 0.0f };
+    juce::dsp::IIR::Filter<float> kick1ClickFilter;
 
-    // Snare 1 State (Image 2)
+    // Kick 2
+    float kick2Phase { 0.0f };
+    float kick2Env { 0.0f };
+    float kick2PitchEnv { 0.0f };
+    float kick2SlapEnv { 0.0f };
+    juce::dsp::IIR::Filter<float> kick2SlapFilter;
+
+    // Snare 1
     float snare1Phase { 0.0f };
     float snare1ToneEnv { 0.0f };
     float snare1NoiseEnv { 0.0f };
     juce::dsp::IIR::Filter<float> snare1Filter;
 
-    // Snare 2 State (Image 3)
+    // Snare 2
     float snare2Phase { 0.0f };
     float snare2ToneEnv { 0.0f };
     float snare2NoiseEnv { 0.0f };
     juce::dsp::IIR::Filter<float> snare2Filter;
     juce::dsp::IIR::Filter<float> snare2MidFilter;
 
-    // Hat State
+    // Clap
+    float clapEnv { 0.0f };
+    int clapStep { 0 };
+    int clapTimer { 0 };
+    juce::dsp::IIR::Filter<float> clapFilter;
+
+    // Hat
     float hatEnv { 0.0f };
     float hatDecayRate { 0.999f };
     juce::dsp::IIR::Filter<float> hatFilter;
 
-    // Sub State
+    // Sub
     float subPhase { 0.0f };
     float subEnv { 0.0f };
 };
