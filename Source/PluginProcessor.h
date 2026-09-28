@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "DSP/DrumSynth.h"
 #include "DSP/TapeSaturation.h"
 #include "DSP/SamplerFilter.h"
 #include "DSP/VCACompressor.h"
@@ -40,14 +41,17 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getAPVTS() noexcept { return apvts; }
+    juce::MidiKeyboardState& getKeyboardState() noexcept { return keyboardState; }
     float getGainReduction() const noexcept { return compressor.getGainReductionDb(); }
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
     juce::AudioProcessorValueTreeState apvts;
+    juce::MidiKeyboardState keyboardState;
 
     // DSP Chain
+    underground::dsp::DrumSynth drumSynth;
     underground::dsp::TapeSaturation tapeSaturation;
     underground::dsp::SamplerFilter samplerFilter;
     underground::dsp::VCACompressor compressor;

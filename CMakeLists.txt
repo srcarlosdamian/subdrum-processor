@@ -14,7 +14,7 @@ if(NOT TARGET juce::juce_audio_processors)
     FetchContent_Declare(
         JUCE
         GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG        8.0.4 # or 7.0.12
+        GIT_TAG        8.0.4
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(JUCE)
@@ -24,10 +24,10 @@ endif()
 juce_add_plugin(SubdrumProcessor
     COMPANY_NAME "UndergroundDSP"
     IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
-    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+    EDITOR_WANTS_KEYBOARD_FOCUS TRUE
     COPY_PLUGIN_AFTER_BUILD FALSE
     PLUGIN_MANUFACTURER_CODE Ugnd
     PLUGIN_CODE Sbdp
@@ -42,6 +42,7 @@ target_sources(SubdrumProcessor
         Source/PluginProcessor.h
         Source/PluginEditor.cpp
         Source/PluginEditor.h
+        Source/DSP/DrumSynth.h
         Source/DSP/TapeSaturation.h
         Source/DSP/SamplerFilter.h
         Source/DSP/VCACompressor.h

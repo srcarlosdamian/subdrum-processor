@@ -2,6 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_audio_utils/juce_audio_utils.h>
 #include "PluginProcessor.h"
 
 // Custom LookAndFeel for sleek underground lo-fi aesthetic
@@ -71,6 +72,9 @@ public:
     void resized() override;
     void timerCallback() override;
 
+    bool keyPressed(const juce::KeyPress& key) override;
+    bool keyStateChanged(bool isKeyDown) override;
+
 private:
     struct RotaryControl
     {
@@ -103,6 +107,9 @@ private:
     RotaryControl vinylDustKnob;
 
     RotaryControl outputGainKnob;
+
+    // Interactive Virtual MIDI Keyboard Component
+    juce::MidiKeyboardComponent keyboardComponent;
 
     float currentMeterGainReduction { 0.0f };
 

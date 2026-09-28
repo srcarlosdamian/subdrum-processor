@@ -108,7 +108,7 @@ const juce::String SubdrumProcessorAudioProcessor::getName() const
 
 bool SubdrumProcessorAudioProcessor::acceptsMidi() const
 {
-    return false;
+    return true;
 }
 
 bool SubdrumProcessorAudioProcessor::producesMidi() const
@@ -153,6 +153,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
         static_cast<juce::uint32>(getTotalNumOutputChannels())
     };
 
+    drumSynth.prepare(spec);
     tapeSaturation.prepare(spec);
     samplerFilter.prepare(spec);
     compressor.prepare(spec);
@@ -164,6 +165,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
 
 void SubdrumProcessorAudioProcessor::releaseResources()
 {
+    drumSynth.reset();
     tapeSaturation.reset();
     samplerFilter.reset();
     compressor.reset();
@@ -182,7 +184,7 @@ bool SubdrumProcessorAudioProcessor::isBusesLayoutSupported(const BusesLayout& l
     return true;
 }
 
-void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     const int totalNumInputChannels  = getTotalNumInputChannels();
@@ -194,7 +196,13 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     if (buffer.getNumSamples() == 0)
         return;
 
-    // 1. Update DSP parameters atomically and lock-free
+    // 1. Process Virtual/Computer Keyboard MIDI messages
+    keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+
+    // 2. Synthesize internal drum hits directly into buffer
+    drumSynth.process(buffer, midiMessages);
+
+    // 3. Update DSP parameters atomically and lock-free
     tapeSaturation.setDrive(driveParam->load(std::memory_order_relaxed));
     tapeSaturation.setMix(tapeMixParam->load(std::memory_order_relaxed) * 0.01f);
 
@@ -213,7 +221,7 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
 
     outputGain.setGainDecibels(outputGainParam->load(std::memory_order_relaxed));
 
-    // 2. Sequential DSP Pipeline
+    // 4. Sequential DSP Pipeline
     juce::dsp::AudioBlock<float> audioBlock(buffer);
     juce::dsp::ProcessContextReplacing<float> context(audioBlock);
 
