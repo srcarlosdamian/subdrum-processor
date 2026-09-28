@@ -1,0 +1,159 @@
+#pragma once
+
+#include <juce_dsp/juce_dsp.h>
+
+namespace underground::dsp
+{
+
+/**
+ * @brief Analog Tape Saturation module featuring 4x oversampling,
+ *        asymmetric non-linear transfer function, and DC offset removal.
+ */
+class TapeSaturation
+{
+public:
+    TapeSaturation() = default;
+    ~TapeSaturation() = default;
+
+    void prepare(const juce::dsp::ProcessSpec& spec)
+    {
+        sampleRate = spec.sampleRate;
+        numChannels = spec.numChannels;
+
+        // 4x Oversampling (factor 2^2 = 4)
+        oversampling = std::make_unique<juce::dsp::Oversampling<float>>(
+            numChannels,
+            2, // 2 stages = 4x
+            juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
+            true, // isMaxLatency
+            false // useIntegerDelay
+        );
+        oversampling->initProcessing(spec.maximumBlockSize);
+
+        // Prepare DC Blockers for each channel (high-pass at ~15 Hz)
+        dcBlockers.resize(numChannels);
+        for (auto& dc : dcBlockers)
+        {
+            dc.state = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 15.0f);
+            dc.reset();
+        }
+
+        driveSmoothed.reset(sampleRate, 0.05); // 50ms smoothing
+        mixSmoothed.reset(sampleRate, 0.05);
+    }
+
+    void reset()
+    {
+        if (oversampling != nullptr)
+            oversampling->reset();
+
+        for (auto& dc : dcBlockers)
+            dc.reset();
+
+        driveSmoothed.setCurrentAndTargetValue(driveSmoothed.getTargetValue());
+        mixSmoothed.setCurrentAndTargetValue(mixSmoothed.getTargetValue());
+    }
+
+    void setDrive(float driveAmountDb)
+    {
+        // Drive in dB: 0 dB to +30 dB
+        const float linearDrive = juce::Decibels::decibelsToGain(driveAmountDb);
+        driveSmoothed.setTargetValue(linearDrive);
+    }
+
+    void setMix(float mixPercentage)
+    {
+        mixSmoothed.setTargetValue(juce::jlimit(0.0f, 1.0f, mixPercentage));
+    }
+
+    template <typename ProcessContext>
+    void process(const ProcessContext& context) noexcept
+    {
+        auto& inputBlock = context.getInputBlock();
+        auto& outputBlock = context.getOutputBlock();
+
+        jassert(inputBlock.getNumChannels() == outputBlock.getNumChannels());
+        jassert(inputBlock.getNumSamples() == outputBlock.getNumSamples());
+
+        const size_t numSamples = inputBlock.getNumSamples();
+        const size_t channels = inputBlock.getNumChannels();
+
+        if (context.isBypassed)
+        {
+            outputBlock.copyFrom(inputBlock);
+            return;
+        }
+
+        // 1. Oversample Input Block (4x)
+        juce::dsp::AudioBlock<float> oversampledBlock = oversampling->processSamplesUp(inputBlock);
+
+        const size_t oversampledNumSamples = oversampledBlock.getNumSamples();
+
+        // 2. Process non-linear tape saturation on oversampled signal
+        for (size_t channel = 0; channel < channels; ++channel)
+        {
+            float* channelData = oversampledBlock.getChannelPointer(channel);
+
+            for (size_t i = 0; i < oversampledNumSamples; ++i)
+            {
+                const float x = channelData[i];
+                const float currentDrive = driveSmoothed.getCurrentValue();
+
+                // Apply drive
+                const float driven = x * currentDrive;
+
+                // Tape non-linear transfer function:
+                // Soft clipping + mild asymmetry generating 2nd harmonic (warmth) and 3rd/5th (magnetic compression)
+                // f(x) = tanh(x + 0.1 * x^2) - bias_comp
+                const float asymmetricInput = driven + 0.12f * (driven * driven) * (driven > 0.0f ? 1.0f : -1.0f);
+                const float saturated = std::tanh(asymmetricInput);
+
+                // Auto-level compensation based on drive to prevent massive volume spikes
+                const float makeupCompensation = 1.0f / (1.0f + 0.35f * std::log10(1.0f + currentDrive));
+
+                channelData[i] = saturated * makeupCompensation;
+            }
+        }
+
+        // Advance smoothing parameter once per frame
+        driveSmoothed.advance(static_cast<int>(numSamples));
+
+        // 3. Downsample back to original rate with anti-aliasing reconstruction
+        oversampling->processSamplesDown(outputBlock);
+
+        // 4. DC Blocker and Dry/Wet Mix
+        for (size_t channel = 0; channel < channels; ++channel)
+        {
+            const float* inData = inputBlock.getChannelPointer(channel);
+            float* outData = outputBlock.getChannelPointer(channel);
+
+            if (channel < dcBlockers.size())
+            {
+                // DC Filter processing
+                auto dcContext = juce::dsp::ProcessContextReplacing<float>(
+                    juce::dsp::AudioBlock<float>(&outData, 1, 0, numSamples)
+                );
+                dcBlockers[channel].process(dcContext);
+            }
+
+            // Mix dry and wet
+            for (size_t i = 0; i < numSamples; ++i)
+            {
+                const float currentMix = mixSmoothed.getNextValue();
+                outData[i] = inData[i] * (1.0f - currentMix) + outData[i] * currentMix;
+            }
+        }
+    }
+
+private:
+    double sampleRate { 44100.0 };
+    size_t numChannels { 2 };
+
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversampling;
+    std::vector<juce::dsp::IIR::Filter<float>> dcBlockers;
+
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> driveSmoothed { 1.0f };
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> mixSmoothed { 1.0f };
+};
+
+} // namespace underground::dsp

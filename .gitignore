@@ -1,0 +1,28 @@
+# Build directories
+build/
+bin/
+lib/
+*.app
+*.vst3
+*.component
+*.dylib
+*.dll
+*.so
+
+# IDE and OS files
+.DS_Store
+.vscode/
+.idea/
+*.xcodeproj/
+*.sln
+*.vcxproj*
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.log
+
+# JUCE generated
+JuceLibraryCode/
+_deps/
+SubdrumProcessor_artefacts/
