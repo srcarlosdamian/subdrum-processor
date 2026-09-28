@@ -50,15 +50,20 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     setupControl(vinylNoiseKnob,  "vinylNoise",    "Dust");
     setupControl(outputGainKnob,  "outputGain",    "Master");
 
-    // Setup Interactive Performance Pads (8 Pads)
-    setupPad(kick1Pad,     "KICK 1\n[ A ]",     36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
-    setupPad(kick2Pad,     "KICK 2\n[ W ]",     37, juce::Colour(0xFFC8BDAA), juce::Colour(0xFF14161A)); // Light Taupe
-    setupPad(snare1Pad,    "SNARE 1\n[ S ]",    38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
-    setupPad(snare2Pad,    "SNARE 2\n[ D ]",    40, juce::Colour(0xFFB3B1FF), juce::Colour(0xFF14161A)); // Lavender
-    setupPad(clapPad,      "CLAP\n[ E ]",       39, juce::Colour(0xFF72B0A8), juce::Colour(0xFF14161A)); // Muted Teal
-    setupPad(closedHatPad, "CL. HAT\n[ T ]",    42, juce::Colour(0xFF87A996), juce::Colour(0xFF14161A)); // Sage Green
-    setupPad(openHatPad,   "OP. HAT\n[ U ]",    46, juce::Colour(0xFFFF8EE2), juce::Colour(0xFF14161A)); // Pink
-    setupPad(subBassPad,   "SUB 808\n[ K ]",    48, juce::Colour(0xFF16181C), juce::Colour(0xFFEDEDF0)); // Rotor Black
+    // Setup Interactive Performance Pads (Strictly 2 Active Sounds)
+    setupPad(kickPad,  "1. KICK\n[ A ]",  36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
+    setupPad(snarePad, "2. SNARE\n[ S ]", 38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
+
+    for (size_t i = 0; i < emptyPads.size(); ++i)
+    {
+        emptyPads[i].setButtonText(juce::String(static_cast<int>(i + 3)) + ". [ EMPTY ]");
+        emptyPads[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFD6D9DF));
+        emptyPads[i].setColour(juce::TextButton::textColourOffId, juce::Colour(0xFF989CA8));
+        emptyPads[i].setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFD6D9DF));
+        emptyPads[i].setEnabled(false);
+        emptyPads[i].setWantsKeyboardFocus(false);
+        addAndMakeVisible(emptyPads[i]);
+    }
 
     // Virtual Keyboard Setup
     keyboardComponent.setAvailableRange(36, 72);
@@ -220,45 +225,17 @@ bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key,
 
     int noteToPlay = -1;
 
+    // Sound 1: KICK (A)
     if (keyChar == 'a' || keyCode == 'A')
     {
         noteToPlay = 36 + octaveOffset;
-        kick1Pad.setState(juce::Button::buttonDown);
+        kickPad.setState(juce::Button::buttonDown);
     }
-    else if (keyChar == 'w' || keyCode == 'W')
-    {
-        noteToPlay = 37 + octaveOffset;
-        kick2Pad.setState(juce::Button::buttonDown);
-    }
+    // Sound 2: SNARE (S)
     else if (keyChar == 's' || keyCode == 'S')
     {
         noteToPlay = 38 + octaveOffset;
-        snare1Pad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'd' || keyCode == 'D')
-    {
-        noteToPlay = 40 + octaveOffset;
-        snare2Pad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'e' || keyCode == 'E')
-    {
-        noteToPlay = 39 + octaveOffset;
-        clapPad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 't' || keyCode == 'T')
-    {
-        noteToPlay = 42 + octaveOffset;
-        closedHatPad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'u' || keyCode == 'U')
-    {
-        noteToPlay = 46 + octaveOffset;
-        openHatPad.setState(juce::Button::buttonDown);
-    }
-    else if (keyChar == 'k' || keyCode == 'K')
-    {
-        noteToPlay = 48 + octaveOffset;
-        subBassPad.setState(juce::Button::buttonDown);
+        snarePad.setState(juce::Button::buttonDown);
     }
 
     if (noteToPlay != -1)
@@ -274,15 +251,8 @@ bool SubdrumProcessorAudioProcessorEditor::keyStateChanged(bool isKeyDown, juce:
 {
     if (!isKeyDown)
     {
-        kick1Pad.setState(juce::Button::buttonNormal);
-        kick2Pad.setState(juce::Button::buttonNormal);
-        snare1Pad.setState(juce::Button::buttonNormal);
-        snare2Pad.setState(juce::Button::buttonNormal);
-        clapPad.setState(juce::Button::buttonNormal);
-        closedHatPad.setState(juce::Button::buttonNormal);
-        openHatPad.setState(juce::Button::buttonNormal);
-        subBassPad.setState(juce::Button::buttonNormal);
-
+        kickPad.setState(juce::Button::buttonNormal);
+        snarePad.setState(juce::Button::buttonNormal);
         audioProcessor.getKeyboardState().allNotesOff(1);
     }
     return true;
@@ -471,21 +441,17 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     const int numPads = 8;
     const int padW = (padsRow.getWidth() - ((numPads - 1) * 6)) / numPads;
 
-    kick1Pad.setBounds(padsRow.removeFromLeft(padW));
+    kickPad.setBounds(padsRow.removeFromLeft(padW));
     padsRow.removeFromLeft(6);
-    kick2Pad.setBounds(padsRow.removeFromLeft(padW));
+    snarePad.setBounds(padsRow.removeFromLeft(padW));
     padsRow.removeFromLeft(6);
-    snare1Pad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(6);
-    snare2Pad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(6);
-    clapPad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(6);
-    closedHatPad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(6);
-    openHatPad.setBounds(padsRow.removeFromLeft(padW));
-    padsRow.removeFromLeft(6);
-    subBassPad.setBounds(padsRow);
+
+    for (size_t i = 0; i < emptyPads.size(); ++i)
+    {
+        emptyPads[i].setBounds(padsRow.removeFromLeft(padW));
+        if (i < emptyPads.size() - 1)
+            padsRow.removeFromLeft(6);
+    }
 
     bottomArea.removeFromTop(6);
     keyboardComponent.setBounds(bottomArea);

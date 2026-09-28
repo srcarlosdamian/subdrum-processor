@@ -150,15 +150,10 @@ private:
     RotaryControl vinylNoiseKnob;
     RotaryControl outputGainKnob;
 
-    // Interactive Drum Pads (8 Pads)
-    juce::TextButton kick1Pad;
-    juce::TextButton kick2Pad;
-    juce::TextButton snare1Pad;
-    juce::TextButton snare2Pad;
-    juce::TextButton clapPad;
-    juce::TextButton closedHatPad;
-    juce::TextButton openHatPad;
-    juce::TextButton subBassPad;
+    // Interactive Drum Pads (Strictly 2 Active Sounds)
+    juce::TextButton kickPad;
+    juce::TextButton snarePad;
+    std::array<juce::TextButton, 6> emptyPads;
 
     // Virtual MIDI Keyboard Component
     juce::MidiKeyboardComponent keyboardComponent;
