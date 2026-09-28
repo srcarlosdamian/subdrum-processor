@@ -25,29 +25,29 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
         item.store(0.0f, std::memory_order_relaxed);
 
     initFactoryPresets();
-    loadPreset(0); // Load 'test' preset by default
+    loadPreset(0);
 }
 
 SubdrumProcessorAudioProcessor::~SubdrumProcessorAudioProcessor() = default;
 
 void SubdrumProcessorAudioProcessor::initFactoryPresets()
 {
-    // Single calibrated preset matching the exact spectrogram kick profile
+    // Single preset starting from scratch
     factoryPresets = {
         {
-            "test",
+            "kick_test",
             {
-                { "drive", 14.0f },        // Saturated tape drive for the intense orange 50-90 Hz body
+                { "drive", 12.0f },
                 { "tapeMix", 100.0f },
-                { "cutoff", 3600.0f },      // Lo-fi lowpass rolloff matching the 4kHz ceiling in image
-                { "resonance", 1.25f },     // Warm resonance shaping
-                { "compThreshold", -18.0f },// Controls initial transient punch
-                { "compRatio", 5.0f },
-                { "compAttack", 1.8f },     // Fast punchy attack
-                { "compRelease", 42.0f },   // Fast release sustaining sub tail up to 0.65s
-                { "compMakeup", 2.5f },
+                { "cutoff", 4200.0f },
+                { "resonance", 1.15f },
+                { "compThreshold", -16.0f },
+                { "compRatio", 4.5f },
+                { "compAttack", 1.5f },
+                { "compRelease", 35.0f },
+                { "compMakeup", 2.0f },
                 { "compMix", 100.0f },
-                { "vinylNoise", 0.0f },     // Clean background floor
+                { "vinylNoise", 0.0f },
                 { "vinylDust", 0.0f },
                 { "outputGain", 0.0f }
             }
@@ -104,7 +104,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
     // 1. Tape Saturation
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "drive", 1 }, "Drive",
-        juce::NormalisableRange<float>(0.0f, 30.0f, 0.1f), 14.0f,
+        juce::NormalisableRange<float>(0.0f, 30.0f, 0.1f), 12.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -115,38 +115,38 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
     // 2. Sampler Lowpass Filter
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "cutoff", 1 }, "Filter",
-        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 3600.0f,
+        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.25f), 4200.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "resonance", 1 }, "Resonance",
-        juce::NormalisableRange<float>(0.1f, 6.0f, 0.05f), 1.25f,
+        juce::NormalisableRange<float>(0.1f, 6.0f, 0.05f), 1.15f,
         juce::AudioParameterFloatAttributes().withLabel("Q")));
 
     // 3. VCA Drum Compressor
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compThreshold", 1 }, "Threshold",
-        juce::NormalisableRange<float>(-40.0f, 0.0f, 0.1f), -18.0f,
+        juce::NormalisableRange<float>(-40.0f, 0.0f, 0.1f), -16.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compRatio", 1 }, "Ratio",
-        juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f), 5.0f,
+        juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f), 4.5f,
         juce::AudioParameterFloatAttributes().withLabel(":1")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compAttack", 1 }, "Attack",
-        juce::NormalisableRange<float>(0.1f, 50.0f, 0.1f, 0.35f), 1.8f,
+        juce::NormalisableRange<float>(0.1f, 50.0f, 0.1f, 0.35f), 1.5f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compRelease", 1 }, "Decay",
-        juce::NormalisableRange<float>(10.0f, 400.0f, 1.0f, 0.4f), 42.0f,
+        juce::NormalisableRange<float>(10.0f, 400.0f, 1.0f, 0.4f), 35.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "compMakeup", 1 }, "Volume",
-        juce::NormalisableRange<float>(-6.0f, 18.0f, 0.1f), 2.5f,
+        juce::NormalisableRange<float>(-6.0f, 18.0f, 0.1f), 2.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
