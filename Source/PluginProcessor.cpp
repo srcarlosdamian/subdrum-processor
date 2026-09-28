@@ -276,15 +276,12 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     // 1. Process Virtual/Computer Keyboard MIDI messages
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
-    // 2. Playback Real Audio Sample or Synthesizer Drum Voice
+    // 2. Playback Audio Sample (Kick slot) & Drum Synthesizer (Snare/Kick voices)
     if (samplePlayer.hasSample())
     {
         samplePlayer.process(buffer, midiMessages);
     }
-    else
-    {
-        drumSynth.process(buffer, midiMessages);
-    }
+    drumSynth.process(buffer, midiMessages);
 
     // 3. Update DSP parameters atomically and lock-free
     tapeSaturation.setDrive(driveParam->load(std::memory_order_relaxed));

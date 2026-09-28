@@ -84,7 +84,11 @@ public:
     {
         if (msg.isNoteOn())
         {
-            trigger();
+            const int note = msg.getNoteNumber();
+            if (note == 35 || note == 36 || note == 60)
+            {
+                trigger();
+            }
         }
     }
 

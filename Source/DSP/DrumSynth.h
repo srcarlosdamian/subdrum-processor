@@ -8,9 +8,9 @@ namespace underground::dsp
 {
 
 /**
- * @brief High-precision Kick synthesizer modeled strictly on the spectrogram time-frequency
- *        profile (68Hz-85Hz dense fundamental body, 145Hz transient sweep, fast 0.07s decay).
- *        All other sounds are completely muted as requested.
+ * @brief High-precision Drum synthesizer modeled strictly on spectrogram time-frequency profiles:
+ *        - Kick: 68Hz-85Hz dense fundamental body, 145Hz transient sweep, fast 0.07s decay.
+ *        - Snare: 165Hz-190Hz sustaining body tone (0.15s), fast pitch-drop attack, and 4.5kHz-16kHz crisp noise burst.
  */
 class DrumSynth
 {
@@ -22,13 +22,25 @@ public:
     {
         sampleRate = spec.sampleRate;
 
-        // Bandpass filter for acoustic beater attack transient
+        // Kick Filters
         kickBeaterFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 3800.0f, 1.2f);
         kickBeaterFilter.reset();
 
-        // Lowpass body smoothing filter
         kickBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 1200.0f, 0.707f);
         kickBodyFilter.reset();
+
+        // Snare Filters (Modeled on Spectrogram)
+        // 1. Snare Body Resonator (175Hz fundamental body)
+        snareBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 950.0f, 0.85f);
+        snareBodyFilter.reset();
+
+        // 2. Snare Wire Crack (4.8kHz Bandpass)
+        snareWireFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 4800.0f, 1.8f);
+        snareWireFilter.reset();
+
+        // 3. Snare High Air / Sizzle (8kHz - 16kHz Highpass)
+        snareAirFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 7500.0f, 0.707f);
+        snareAirFilter.reset();
 
         reset();
     }
@@ -41,8 +53,18 @@ public:
         kickPitchEnv = 0.0f;
         kickBeaterEnv = 0.0f;
 
+        snarePhase = 0.0f;
+        snareEnv = 0.0f;
+        snarePitchEnv = 0.0f;
+        snareNoiseEnv = 0.0f;
+        snareSnapEnv = 0.0f;
+
         kickBeaterFilter.reset();
         kickBodyFilter.reset();
+        snareBodyFilter.reset();
+        snareWireFilter.reset();
+        snareAirFilter.reset();
+
         rngState = 0x98765432;
     }
 
@@ -53,7 +75,7 @@ public:
             const int note = msg.getNoteNumber();
             const float vel = msg.getFloatVelocity();
 
-            // Only trigger on Kick notes (Note 35, 36, or any key if playing single sound)
+            // Kick Notes (Note 35, 36)
             if (note == 35 || note == 36 || note == 60)
             {
                 kickEnv = vel * 1.35f;
@@ -61,6 +83,15 @@ public:
                 kickBeaterEnv = vel * 1.0f;
                 kickPhase = 0.0f;
                 kickHarmonicPhase = 0.0f;
+            }
+            // Snare Notes (Note 38: Snare 1, Note 40: Snare 2, Note 39: Clap)
+            else if (note == 38 || note == 40 || note == 39)
+            {
+                snareEnv = vel * 1.25f;
+                snarePitchEnv = 1.0f;
+                snareNoiseEnv = vel * 1.15f;
+                snareSnapEnv = vel * 1.4f;
+                snarePhase = 0.0f;
             }
         }
     }
@@ -74,10 +105,16 @@ public:
         const float twoPi = juce::MathConstants<float>::twoPi;
         const float samplePeriod = 1.0f / static_cast<float>(sampleRate);
 
-        // Calibrated decay rates matching the 0.07s spectrogram window
+        // Kick decay rates
         const float kickDecayCoef = std::exp(-1.0f / (0.072f * static_cast<float>(sampleRate) * 0.45f));
-        const float pitchDecayCoef = std::exp(-1.0f / (0.016f * static_cast<float>(sampleRate))); // 16ms pitch drop
-        const float beaterDecayCoef = std::exp(-1.0f / (0.006f * static_cast<float>(sampleRate))); // 6ms acoustic click
+        const float pitchDecayCoef = std::exp(-1.0f / (0.016f * static_cast<float>(sampleRate)));
+        const float beaterDecayCoef = std::exp(-1.0f / (0.006f * static_cast<float>(sampleRate)));
+
+        // Snare decay rates (Modeled on the 0.15s spectrogram profile)
+        const float snareBodyDecayCoef = std::exp(-1.0f / (0.155f * static_cast<float>(sampleRate) * 0.55f));
+        const float snarePitchDecayCoef = std::exp(-1.0f / (0.018f * static_cast<float>(sampleRate))); // 18ms pitch drop
+        const float snareNoiseDecayCoef = std::exp(-1.0f / (0.110f * static_cast<float>(sampleRate) * 0.65f)); // 110ms noise rattle
+        const float snareSnapDecayCoef = std::exp(-1.0f / (0.008f * static_cast<float>(sampleRate))); // 8ms initial transient crack
 
         for (int sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx)
         {
@@ -89,21 +126,16 @@ public:
 
             float synthSample = 0.0f;
 
+            // 1. Kick Voice Processing
             if (kickEnv > 1.0e-4f)
             {
-                // Pitch envelope: drops rapidly from 145 Hz down to 68 Hz fundamental
                 const float kickFreq = 68.0f + 77.0f * (kickPitchEnv * kickPitchEnv);
-
-                // Multi-harmonic synthesized body (Fundamental + 2nd harmonic warmth)
                 const float fund = std::sin(kickPhase);
                 const float harm2 = std::sin(kickHarmonicPhase) * 0.35f;
                 const float rawBody = (fund + harm2) * kickEnv;
-
-                // Non-linear saturation for intense low-end weight
                 const float saturatedBody = std::tanh(rawBody * 1.6f);
                 const float filteredBody = kickBodyFilter.processSample(saturatedBody);
 
-                // Acoustic Beater click transient
                 float beaterClick = 0.0f;
                 if (kickBeaterEnv > 1.0e-3f)
                 {
@@ -112,18 +144,50 @@ public:
                     kickBeaterEnv *= beaterDecayCoef;
                 }
 
-                synthSample = filteredBody * 1.3f + beaterClick;
+                synthSample += filteredBody * 1.3f + beaterClick;
 
                 kickPhase += twoPi * kickFreq * samplePeriod;
-                if (kickPhase >= twoPi)
-                    kickPhase -= twoPi;
+                if (kickPhase >= twoPi) kickPhase -= twoPi;
 
                 kickHarmonicPhase += twoPi * (kickFreq * 2.0f) * samplePeriod;
-                if (kickHarmonicPhase >= twoPi)
-                    kickHarmonicPhase -= twoPi;
+                if (kickHarmonicPhase >= twoPi) kickHarmonicPhase -= twoPi;
 
                 kickEnv *= kickDecayCoef;
                 kickPitchEnv *= pitchDecayCoef;
+            }
+
+            // 2. Snare Voice Processing (Spectrogram-Calibrated)
+            if (snareEnv > 1.0e-4f || snareNoiseEnv > 1.0e-4f)
+            {
+                // Body Tone: 172Hz fundamental with fast 280Hz initial pitch drop
+                const float snareFreq = 172.0f + 110.0f * (snarePitchEnv * snarePitchEnv);
+                const float snareSine = std::sin(snarePhase);
+                const float snareTriangle = (std::abs(std::fmod(snarePhase / juce::MathConstants<float>::pi + 1.0f, 2.0f) - 1.0f) * 2.0f - 1.0f) * 0.4f;
+                const float rawSnareBody = (snareSine + snareTriangle) * snareEnv;
+                const float filteredSnareBody = snareBodyFilter.processSample(std::tanh(rawSnareBody * 1.4f));
+
+                // Snare Noise Crack & Air
+                const float rawNoise = nextRandomFloat() * 2.0f - 1.0f;
+                const float wireNoise = snareWireFilter.processSample(rawNoise) * snareNoiseEnv * 1.1f;
+                const float airNoise = snareAirFilter.processSample(rawNoise) * snareNoiseEnv * 0.65f;
+
+                // Sharp Transient Snap (Crack Attack)
+                float snapCrack = 0.0f;
+                if (snareSnapEnv > 1.0e-3f)
+                {
+                    snapCrack = snareWireFilter.processSample(rawNoise) * snareSnapEnv * 1.2f;
+                    snareSnapEnv *= snareSnapDecayCoef;
+                }
+
+                const float totalSnare = (filteredSnareBody * 0.95f) + wireNoise + airNoise + snapCrack;
+                synthSample += totalSnare;
+
+                snarePhase += twoPi * snareFreq * samplePeriod;
+                if (snarePhase >= twoPi) snarePhase -= twoPi;
+
+                snareEnv *= snareBodyDecayCoef;
+                snarePitchEnv *= snarePitchDecayCoef;
+                snareNoiseEnv *= snareNoiseDecayCoef;
             }
 
             if (synthSample != 0.0f)
@@ -149,6 +213,7 @@ private:
     double sampleRate { 44100.0 };
     uint32_t rngState { 0x98765432 };
 
+    // Kick State
     float kickPhase { 0.0f };
     float kickHarmonicPhase { 0.0f };
     float kickEnv { 0.0f };
@@ -157,6 +222,17 @@ private:
 
     juce::dsp::IIR::Filter<float> kickBeaterFilter;
     juce::dsp::IIR::Filter<float> kickBodyFilter;
+
+    // Snare State
+    float snarePhase { 0.0f };
+    float snareEnv { 0.0f };
+    float snarePitchEnv { 0.0f };
+    float snareNoiseEnv { 0.0f };
+    float snareSnapEnv { 0.0f };
+
+    juce::dsp::IIR::Filter<float> snareBodyFilter;
+    juce::dsp::IIR::Filter<float> snareWireFilter;
+    juce::dsp::IIR::Filter<float> snareAirFilter;
 };
 
 } // namespace underground::dsp
