@@ -151,7 +151,7 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
         {
             "03 // Dark Dubstep Weight",
             {
-                { "kickPitch", -4.0f }, { "kickTune", 48.0f }, { "kickSweep", 120.0f }, { "kickDecay", 110.0f }, { "kickPunch", 90.0f }, { "kickDrive", 80.0f },
+                { "kickPitch", 0.0f }, { "kickTune", 52.0f }, { "kickSweep", 110.0f }, { "kickDecay", 92.0f }, { "kickPunch", 85.0f }, { "kickDrive", 75.0f },
                 { "snarePitch", -2.0f }, { "snareDecay", 220.0f }, { "snareSnap", 95.0f }, { "snareTone", 175.0f }, { "snareCrack", 90.0f }, { "snareDrive", 70.0f },
                 { "clapPitch", -2.0f }, { "clapDecay", 220.0f }, { "clapWood", 95.0f }, { "clapSlap", 95.0f }, { "clapTone", 6200.0f }, { "clapTail", 65.0f },
                 { "chatPitch", -2.0f }, { "chatDecay", 50.0f }, { "chatTone", 7500.0f }, { "chatSizzle", 65.0f }, { "chatRes", 2.5f }, { "chatDrive", 60.0f },
