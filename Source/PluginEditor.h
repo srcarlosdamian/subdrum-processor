@@ -146,13 +146,13 @@ private:
     RotaryControl kickPunchKnob;
     RotaryControl kickDriveKnob;
 
-    // TAB 2: SNARE / 2-STEP CLAP CONTROLS
+    // TAB 2: BURIAL ACOUSTIC CLAP / HARD SNARE CONTROLS
     RotaryControl snarePitchKnob;
     RotaryControl snareDecayKnob;
-    RotaryControl snareNoiseKnob;
-    RotaryControl snareSnapKnob;
+    RotaryControl snareWoodKnob;
+    RotaryControl snareSlapKnob;
     RotaryControl snareSizzleKnob;
-    RotaryControl snareBodyKnob;
+    RotaryControl snareFlamKnob;
 
     // TAB 3: MASTER DSP, DUB ECHO & ROOM AMBIENCE CONTROLS
     RotaryControl roomMixKnob;
