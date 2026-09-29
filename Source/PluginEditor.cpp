@@ -53,7 +53,6 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     saveButton.setWantsKeyboardFocus(false);
     saveButton.onClick = [this]()
     {
-        // Save current parameters into memory
         saveButton.setButtonText("SAVED ✓");
         juce::Timer::callAfterDelay(1500, [this]() { saveButton.setButtonText("SAVE"); });
     };
@@ -112,47 +111,97 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     };
     addAndMakeVisible(importButton);
 
-    // Tab Navigation Buttons Setup
-    auto setupTabBtn = [this](juce::TextButton& btn, const juce::String& text, SoundTab tab)
-    {
-        btn.setButtonText(text);
-        btn.setWantsKeyboardFocus(false);
-        btn.onClick = [this, tab]() { setActiveTab(tab); };
-        addAndMakeVisible(btn);
+    // 4. Tab Navigation Buttons (9 Tabs: 8 Sounds + Master DSP)
+    const juce::String tabTitles[9] = {
+        "1. KICK", "2. SNARE", "3. CLAP", "4. C-HAT",
+        "5. O-HAT", "6. RIM", "7. SUB 808", "8. SHAKER", "⚡ MASTER"
     };
 
-    setupTabBtn(kickTabButton,   "1. BASS KICK",     SoundTab::Kick);
-    setupTabBtn(snareTabButton,  "2. ACOUSTIC CLAP", SoundTab::SnareClap);
-    setupTabBtn(masterTabButton, "3. MASTER DSP",    SoundTab::MasterDSP);
+    for (int i = 0; i < 9; ++i)
+    {
+        tabButtons[i].setButtonText(tabTitles[i]);
+        tabButtons[i].setWantsKeyboardFocus(false);
+        const auto targetTab = static_cast<SoundTab>(i);
+        tabButtons[i].onClick = [this, targetTab]() { setActiveTab(targetTab); };
+        addAndMakeVisible(tabButtons[i]);
+    }
 
     // 1. KICK CONTROLS (6 Knobs)
-    setupControl(kickPitchKnob, "kickPitch", "Pitch (st)");
-    setupControl(kickTuneKnob,  "kickTune",  "Tune (Hz)");
-    setupControl(kickSweepKnob, "kickSweep", "Pitch Drop");
-    setupControl(kickDecayKnob, "kickDecay", "Decay (ms)");
-    setupControl(kickPunchKnob, "kickPunch", "Punch Click");
-    setupControl(kickDriveKnob, "kickDrive", "Overdrive");
+    setupControl(kickControls[0], "kickPitch", "Pitch (st)");
+    setupControl(kickControls[1], "kickTune",  "Tune (Hz)");
+    setupControl(kickControls[2], "kickSweep", "Pitch Drop");
+    setupControl(kickControls[3], "kickDecay", "Decay (ms)");
+    setupControl(kickControls[4], "kickPunch", "Punch Click");
+    setupControl(kickControls[5], "kickDrive", "Overdrive");
 
-    // 2. ACOUSTIC CLAP CONTROLS (6 Knobs)
-    setupControl(snarePitchKnob, "snarePitch", "Pitch (st)");
-    setupControl(snareDecayKnob, "snareDecay", "Decay (ms)");
-    setupControl(snareWoodKnob,  "snareWood",  "Acoustic Wood");
-    setupControl(snareSlapKnob,  "snareSlap",  "Slap Smack");
-    setupControl(snareToneKnob,  "snareTone",  "Noise Filter");
-    setupControl(snareTailKnob,  "snareTail",  "Room Tail");
+    // 2. SNARE CONTROLS (6 Knobs)
+    setupControl(snareControls[0], "snarePitch", "Pitch (st)");
+    setupControl(snareControls[1], "snareDecay", "Decay (ms)");
+    setupControl(snareControls[2], "snareSnap",  "Snappy Wire");
+    setupControl(snareControls[3], "snareTone",  "Body Tone");
+    setupControl(snareControls[4], "snareCrack", "Rim Crack");
+    setupControl(snareControls[5], "snareDrive", "Overdrive");
 
-    // 3. MASTER DSP, BITS, REVERB & DUCKING CONTROLS (11 Knobs)
-    setupControl(roomMixKnob,     "roomMix",    "Room Space");
-    setupControl(roomSizeKnob,    "roomSize",   "Room Size");
-    setupControl(echoMixKnob,     "echoMix",    "Dub Echo");
-    setupControl(driveKnob,       "drive",      "Tape Drive");
-    setupControl(cutoffKnob,      "cutoff",     "Master Filter");
-    setupControl(bitDepthKnob,    "bitDepth",   "Bit Depth");
-    setupControl(downsampleKnob,  "downsample", "Downsample");
-    setupControl(bitMixKnob,      "bitMix",     "Lo-Fi Bits");
-    setupControl(duckDepthKnob,   "duckDepth",  "Sidechain Duck");
-    setupControl(vinylDustKnob,   "vinylDust",  "Dust Crackle");
-    setupControl(outputGainKnob,  "outputGain", "Master Gain");
+    // 3. CLAP CONTROLS (6 Knobs)
+    setupControl(clapControls[0], "clapPitch", "Pitch (st)");
+    setupControl(clapControls[1], "clapDecay", "Decay (ms)");
+    setupControl(clapControls[2], "clapWood",  "Acoustic Wood");
+    setupControl(clapControls[3], "clapSlap",  "Slap Smack");
+    setupControl(clapControls[4], "clapTone",  "Noise Filter");
+    setupControl(clapControls[5], "clapTail",  "Room Tail");
+
+    // 4. CLOSED HAT CONTROLS (6 Knobs)
+    setupControl(chatControls[0], "chatPitch",  "Pitch (st)");
+    setupControl(chatControls[1], "chatDecay",  "Decay (ms)");
+    setupControl(chatControls[2], "chatTone",   "Hat Cutoff");
+    setupControl(chatControls[3], "chatSizzle", "Air Sizzle");
+    setupControl(chatControls[4], "chatRes",    "Resonance");
+    setupControl(chatControls[5], "chatDrive",  "Overdrive");
+
+    // 5. OPEN HAT CONTROLS (6 Knobs)
+    setupControl(ohatControls[0], "ohatPitch",  "Pitch (st)");
+    setupControl(ohatControls[1], "ohatDecay",  "Decay (ms)");
+    setupControl(ohatControls[2], "ohatTone",   "Open Cutoff");
+    setupControl(ohatControls[3], "ohatSizzle", "Air Sizzle");
+    setupControl(ohatControls[4], "ohatChoke",  "Hat Choke");
+    setupControl(ohatControls[5], "ohatDrive",  "Overdrive");
+
+    // 6. RIMSHOT CONTROLS (6 Knobs)
+    setupControl(rimControls[0], "rimPitch", "Pitch (st)");
+    setupControl(rimControls[1], "rimDecay", "Decay (ms)");
+    setupControl(rimControls[2], "rimTune",  "Wood Tone");
+    setupControl(rimControls[3], "rimSnap",  "Rim Snap");
+    setupControl(rimControls[4], "rimTone",  "Rim Cutoff");
+    setupControl(rimControls[5], "rimDrive", "Overdrive");
+
+    // 7. SUB 808 CONTROLS (6 Knobs)
+    setupControl(subControls[0], "subTune",   "Sub Tune");
+    setupControl(subControls[1], "subDecay",  "Decay (ms)");
+    setupControl(subControls[2], "subSweep",  "Pitch Drop");
+    setupControl(subControls[3], "subDrive",  "Saturation");
+    setupControl(subControls[4], "subCutoff", "Lowpass");
+    setupControl(subControls[5], "subLevel",  "Volume (dB)");
+
+    // 8. SHAKER & VINYL CONTROLS (6 Knobs)
+    setupControl(shakerControls[0], "shakerAttack", "Attack (ms)");
+    setupControl(shakerControls[1], "shakerDecay",  "Decay (ms)");
+    setupControl(shakerControls[2], "shakerTone",   "Filter (Hz)");
+    setupControl(shakerControls[3], "vinylCrackle", "Crackle Pop");
+    setupControl(shakerControls[4], "vinylHiss",    "Needle Hiss");
+    setupControl(shakerControls[5], "shakerDrive",  "Overdrive");
+
+    // 9. MASTER DSP, BITS, REVERB & DUCKING CONTROLS (11 Knobs)
+    setupControl(masterControls[0],  "roomMix",    "Room Space");
+    setupControl(masterControls[1],  "roomSize",   "Room Size");
+    setupControl(masterControls[2],  "echoMix",    "Dub Echo");
+    setupControl(masterControls[3],  "drive",      "Tape Drive");
+    setupControl(masterControls[4],  "cutoff",     "Master Filter");
+    setupControl(masterControls[5],  "outputGain", "Master Gain");
+    setupControl(masterControls[6],  "bitDepth",   "Bit Depth");
+    setupControl(masterControls[7],  "downsample", "Downsample");
+    setupControl(masterControls[8],  "bitMix",     "Lo-Fi Bits");
+    setupControl(masterControls[9],  "duckDepth",  "Sidechain Duck");
+    setupControl(masterControls[10], "vinylDust",  "Dust Crackle");
 
     // TR-808 Style Sequencer Transport Setup
     playButton.setButtonText("▶ PLAY");
@@ -216,7 +265,7 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     addAndMakeVisible(clearPatternButton);
 
     // 4 Tracks Labels Setup
-    const juce::String trackNames[4] = { "1. KICK", "2. CLAP", "3. C-HAT", "4. PERC" };
+    const juce::String trackNames[4] = { "1. KICK", "2. SNARE", "3. CLAP", "4. C-HAT" };
     for (int t = 0; t < 4; ++t)
     {
         trackLabels[t].setText(trackNames[t], juce::dontSendNotification);
@@ -239,15 +288,15 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
 
     // 8 Performance Trigger Drum Pads Setup
     setupPad(drumPads[0], "1. KICK\n[ A ]",   36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
-    setupPad(drumPads[1], "2. CLAP\n[ S ]",   38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
-    setupPad(drumPads[2], "3. C-HAT\n[ D ]",  42, juce::Colour(0xFFE9C46A), juce::Colour(0xFF14161A)); // Gold
-    setupPad(drumPads[3], "4. O-HAT\n[ F ]",  46, juce::Colour(0xFFF4A261), juce::Colour(0xFF14161A)); // Coral-Orange
-    setupPad(drumPads[4], "5. VINYL\n[ G ]",  48, juce::Colour(0xFF8D99AE), juce::Colour(0xFF14161A)); // Slate
+    setupPad(drumPads[1], "2. SNARE\n[ S ]",  38, juce::Colour(0xFFFF7B54), juce::Colour(0xFF14161A)); // Coral Orange
+    setupPad(drumPads[2], "3. CLAP\n[ D ]",   39, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
+    setupPad(drumPads[3], "4. C-HAT\n[ F ]",  42, juce::Colour(0xFFE9C46A), juce::Colour(0xFF14161A)); // Gold
+    setupPad(drumPads[4], "5. O-HAT\n[ G ]",  46, juce::Colour(0xFFF4A261), juce::Colour(0xFF14161A)); // Amber
     setupPad(drumPads[5], "6. RIM\n[ H ]",    37, juce::Colour(0xFFE76F51), juce::Colour(0xFF14161A)); // Rust Red
-    setupPad(drumPads[6], "7. SUB 808\n[ J ]",39, juce::Colour(0xFF7209B7), juce::Colour(0xFFFFFFFF)); // Purple
+    setupPad(drumPads[6], "7. SUB 808\n[ J ]",48, juce::Colour(0xFF7209B7), juce::Colour(0xFFFFFFFF)); // Purple
     setupPad(drumPads[7], "8. SHAKER\n[ K ]", 40, juce::Colour(0xFF2A9D8F), juce::Colour(0xFF14161A)); // Teal
 
-    setActiveTab(SoundTab::SnareClap);
+    setActiveTab(SoundTab::Snare);
     updateSequencerButtonColours();
 
     setWantsKeyboardFocus(true);
@@ -269,52 +318,39 @@ void SubdrumProcessorAudioProcessorEditor::setActiveTab(SoundTab tab)
 {
     activeTab = tab;
 
-    auto updateTabBtnStyle = [](juce::TextButton& btn, bool active)
+    for (int i = 0; i < 9; ++i)
     {
-        if (active)
+        const bool isActive = (static_cast<int>(tab) == i);
+        if (isActive)
         {
-            btn.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFFF3B30));
-            btn.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFFFFFFF));
+            tabButtons[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFFF3B30));
+            tabButtons[i].setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFFFFFFF));
         }
         else
         {
-            btn.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFD2D5DC));
-            btn.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFF4A4E58));
+            tabButtons[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFD2D5DC));
+            tabButtons[i].setColour(juce::TextButton::textColourOffId, juce::Colour(0xFF4A4E58));
+        }
+    }
+
+    auto toggleGroup = [](auto& controls, bool visible)
+    {
+        for (auto& c : controls)
+        {
+            c.slider.setVisible(visible);
+            c.label.setVisible(visible);
         }
     };
 
-    updateTabBtnStyle(kickTabButton,   activeTab == SoundTab::Kick);
-    updateTabBtnStyle(snareTabButton,  activeTab == SoundTab::SnareClap);
-    updateTabBtnStyle(masterTabButton, activeTab == SoundTab::MasterDSP);
-
-    const bool isKick = (activeTab == SoundTab::Kick);
-    kickPitchKnob.slider.setVisible(isKick);   kickPitchKnob.label.setVisible(isKick);
-    kickTuneKnob.slider.setVisible(isKick);    kickTuneKnob.label.setVisible(isKick);
-    kickSweepKnob.slider.setVisible(isKick);   kickSweepKnob.label.setVisible(isKick);
-    kickDecayKnob.slider.setVisible(isKick);   kickDecayKnob.label.setVisible(isKick);
-    kickPunchKnob.slider.setVisible(isKick);   kickPunchKnob.label.setVisible(isKick);
-    kickDriveKnob.slider.setVisible(isKick);   kickDriveKnob.label.setVisible(isKick);
-
-    const bool isSnare = (activeTab == SoundTab::SnareClap);
-    snarePitchKnob.slider.setVisible(isSnare); snarePitchKnob.label.setVisible(isSnare);
-    snareDecayKnob.slider.setVisible(isSnare); snareDecayKnob.label.setVisible(isSnare);
-    snareWoodKnob.slider.setVisible(isSnare);  snareWoodKnob.label.setVisible(isSnare);
-    snareSlapKnob.slider.setVisible(isSnare);  snareSlapKnob.label.setVisible(isSnare);
-    snareToneKnob.slider.setVisible(isSnare);  snareToneKnob.label.setVisible(isSnare);
-    snareTailKnob.slider.setVisible(isSnare);  snareTailKnob.label.setVisible(isSnare);
-
-    const bool isMaster = (activeTab == SoundTab::MasterDSP);
-    roomMixKnob.slider.setVisible(isMaster);     roomMixKnob.label.setVisible(isMaster);
-    roomSizeKnob.slider.setVisible(isMaster);    roomSizeKnob.label.setVisible(isMaster);
-    echoMixKnob.slider.setVisible(isMaster);     echoMixKnob.label.setVisible(isMaster);
-    driveKnob.slider.setVisible(isMaster);       driveKnob.label.setVisible(isMaster);
-    cutoffKnob.slider.setVisible(isMaster);      cutoffKnob.label.setVisible(isMaster);
-    bitDepthKnob.slider.setVisible(isMaster);    bitDepthKnob.label.setVisible(isMaster);
-    downsampleKnob.slider.setVisible(isMaster);  downsampleKnob.label.setVisible(isMaster);
-    bitMixKnob.slider.setVisible(isMaster);      bitMixKnob.label.setVisible(isMaster);
-    duckDepthKnob.slider.setVisible(isMaster);   duckDepthKnob.label.setVisible(isMaster);
-    vinylDustKnob.slider.setVisible(isMaster);   vinylDustKnob.label.setVisible(isMaster);
-    outputGainKnob.slider.setVisible(isMaster);  outputGainKnob.label.setVisible(isMaster);
+    toggleGroup(kickControls,   activeTab == SoundTab::Kick);
+    toggleGroup(snareControls,  activeTab == SoundTab::Snare);
+    toggleGroup(clapControls,   activeTab == SoundTab::Clap);
+    toggleGroup(chatControls,   activeTab == SoundTab::ClosedHat);
+    toggleGroup(ohatControls,   activeTab == SoundTab::OpenHat);
+    toggleGroup(rimControls,    activeTab == SoundTab::Rimshot);
+    toggleGroup(subControls,    activeTab == SoundTab::Sub808);
+    toggleGroup(shakerControls, activeTab == SoundTab::Shaker);
+    toggleGroup(masterControls, activeTab == SoundTab::MasterDSP);
 
     resized();
     repaint();
@@ -389,9 +425,26 @@ void SubdrumProcessorAudioProcessorEditor::setupPad(juce::TextButton& button, co
     button.onStateChange = [this, &button, note]()
     {
         if (button.isDown())
+        {
+            // Switch active tab to the sound being pressed
+            int padIdx = -1;
+            for (size_t i = 0; i < drumPads.size(); ++i)
+            {
+                if (&drumPads[i] == &button)
+                {
+                    padIdx = static_cast<int>(i);
+                    break;
+                }
+            }
+            if (padIdx >= 0 && padIdx < 8)
+                setActiveTab(static_cast<SoundTab>(padIdx));
+
             triggerDrumVoice(note);
+        }
         else
+        {
             releaseDrumVoice(note);
+        }
     };
 
     addAndMakeVisible(button);
@@ -413,7 +466,6 @@ bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key,
     const auto keyChar = std::tolower(key.getTextCharacter());
     const int keyCode = key.getKeyCode();
 
-    // Octave Transpose (Z / X)
     if (keyChar == 'z' || keyCode == 'Z')
     {
         octaveOffset = juce::jmax(-24, octaveOffset - 12);
@@ -432,18 +484,21 @@ bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key,
     {
         case 'a': noteToPlay = 36 + octaveOffset; padIndex = 0; break;
         case 's': noteToPlay = 38 + octaveOffset; padIndex = 1; break;
-        case 'd': noteToPlay = 42 + octaveOffset; padIndex = 2; break;
-        case 'f': noteToPlay = 46 + octaveOffset; padIndex = 3; break;
-        case 'g': noteToPlay = 48 + octaveOffset; padIndex = 4; break;
+        case 'd': noteToPlay = 39 + octaveOffset; padIndex = 2; break;
+        case 'f': noteToPlay = 42 + octaveOffset; padIndex = 3; break;
+        case 'g': noteToPlay = 46 + octaveOffset; padIndex = 4; break;
         case 'h': noteToPlay = 37 + octaveOffset; padIndex = 5; break;
-        case 'j': noteToPlay = 39 + octaveOffset; padIndex = 6; break;
+        case 'j': noteToPlay = 48 + octaveOffset; padIndex = 6; break;
         case 'k': noteToPlay = 40 + octaveOffset; padIndex = 7; break;
     }
 
     if (noteToPlay != -1)
     {
         if (padIndex >= 0 && padIndex < 8)
+        {
             drumPads[padIndex].setState(juce::Button::buttonDown);
+            setActiveTab(static_cast<SoundTab>(padIndex));
+        }
         triggerDrumVoice(noteToPlay);
         return true;
     }
@@ -536,7 +591,7 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
     // Active Sound Status Banner
     g.setColour(juce::Colour(0xFF5A5E68));
     g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
-    g.drawText("SYNTHESIS ENGINES: [ 8 VOICES ACTIVE | 12-BIT LO-FI CRUNCH | DUB ECHO & DUCKING ]",
+    g.drawText("SYNTHESIS ENGINES: [ 8 DEDICATED VOICES + INDIVIDUAL PROPERTIES | 12-BIT LO-FI CRUNCH | DUB ECHO & DUCKING ]",
                screenBounds.getX() + 16, screenBounds.getY() + 4, screenBounds.getWidth() - 32, 14, juce::Justification::left);
 
     const float centerY = screenBounds.getCentreY() + 6.0f;
@@ -604,7 +659,7 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
 
     g.setColour(juce::Colour(0xFF5A5E68));
     g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
-    g.drawText("VOICE TRIGGER PADS (QWERTY [A] [S] [D] [F] [G] [H] [J] [K])", bottomSection.getX() + 14, bottomSection.getY() + 6, 450, 14, juce::Justification::left);
+    g.drawText("VOICE TRIGGER PADS (QWERTY [A] [S] [D] [F] [G] [H] [J] [K] — CLICK PAD TO EDIT PROPERTIES)", bottomSection.getX() + 14, bottomSection.getY() + 6, 600, 14, juce::Justification::left);
 }
 
 void SubdrumProcessorAudioProcessorEditor::resized()
@@ -617,15 +672,17 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     importButton.setBounds(680, topY, 80, 28);
     exportButton.setBounds(770, topY, 80, 28);
 
-    // Sound Tabs Navigation Row
-    const int tabX = 32;
+    // 9 Sound Tabs Navigation Row
     const int tabY = 156;
-    const int tabW = 140;
     const int tabH = 26;
+    const int tabAreaX = 30;
+    const int tabAreaW = getWidth() - 60;
+    const int singleTabW = tabAreaW / 9;
 
-    kickTabButton.setBounds(tabX, tabY, tabW, tabH);
-    snareTabButton.setBounds(tabX + tabW + 8, tabY, tabW + 15, tabH);
-    masterTabButton.setBounds(tabX + (tabW * 2) + 30, tabY, tabW + 10, tabH);
+    for (int i = 0; i < 9; ++i)
+    {
+        tabButtons[i].setBounds(tabAreaX + i * singleTabW, tabY, singleTabW - 4, tabH);
+    }
 
     auto placeKnob = [](RotaryControl& ctrl, juce::Rectangle<int> box)
     {
@@ -638,53 +695,42 @@ void SubdrumProcessorAudioProcessorEditor::resized()
     const int knobsAreaH = 135;
     const int contentW = getWidth() - 60;
 
-    // TAB 1: KICK (6 Knobs)
-    if (activeTab == SoundTab::Kick)
+    auto layout6Knobs = [&](auto& controls)
     {
-        const int numKnobs = 6;
-        const int knobW = contentW / numKnobs;
-        placeKnob(kickPitchKnob, juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickTuneKnob,  juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickSweepKnob, juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickDecayKnob, juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickPunchKnob, juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(kickDriveKnob, juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
-    }
-    // TAB 2: ACOUSTIC CLAP (6 Knobs)
-    else if (activeTab == SoundTab::SnareClap)
-    {
-        const int numKnobs = 6;
-        const int knobW = contentW / numKnobs;
-        placeKnob(snarePitchKnob, juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareDecayKnob, juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareWoodKnob,  juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareSlapKnob,  juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareToneKnob,  juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareTailKnob,  juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
-    }
-    // TAB 3: MASTER DSP, BITS, REVERB & DUCKING (11 Knobs in 2 Rows)
-    else if (activeTab == SoundTab::MasterDSP)
-    {
-        const int rowH = 68;
-        const int topRowY = knobsAreaTop;
-        const int botRowY = knobsAreaTop + rowH + 2;
+        const int knobW = contentW / 6;
+        for (int k = 0; k < 6; ++k)
+        {
+            placeKnob(controls[k], juce::Rectangle<int>(30 + k * knobW, knobsAreaTop, knobW, knobsAreaH));
+        }
+    };
 
-        // Row 1: Space & Color (6 knobs)
-        const int knobW1 = contentW / 6;
-        placeKnob(roomMixKnob,    juce::Rectangle<int>(30 + 0 * knobW1, topRowY, knobW1, rowH));
-        placeKnob(roomSizeKnob,   juce::Rectangle<int>(30 + 1 * knobW1, topRowY, knobW1, rowH));
-        placeKnob(echoMixKnob,    juce::Rectangle<int>(30 + 2 * knobW1, topRowY, knobW1, rowH));
-        placeKnob(driveKnob,      juce::Rectangle<int>(30 + 3 * knobW1, topRowY, knobW1, rowH));
-        placeKnob(cutoffKnob,     juce::Rectangle<int>(30 + 4 * knobW1, topRowY, knobW1, rowH));
-        placeKnob(outputGainKnob, juce::Rectangle<int>(30 + 5 * knobW1, topRowY, knobW1, rowH));
+    switch (activeTab)
+    {
+        case SoundTab::Kick:      layout6Knobs(kickControls); break;
+        case SoundTab::Snare:     layout6Knobs(snareControls); break;
+        case SoundTab::Clap:      layout6Knobs(clapControls); break;
+        case SoundTab::ClosedHat: layout6Knobs(chatControls); break;
+        case SoundTab::OpenHat:   layout6Knobs(ohatControls); break;
+        case SoundTab::Rimshot:   layout6Knobs(rimControls); break;
+        case SoundTab::Sub808:    layout6Knobs(subControls); break;
+        case SoundTab::Shaker:    layout6Knobs(shakerControls); break;
+        case SoundTab::MasterDSP:
+        {
+            const int rowH = 68;
+            const int topRowY = knobsAreaTop;
+            const int botRowY = knobsAreaTop + rowH + 2;
 
-        // Row 2: Lo-Fi Bits, Decimator, Ducking & Vinyl (5 knobs)
-        const int knobW2 = contentW / 5;
-        placeKnob(bitDepthKnob,   juce::Rectangle<int>(30 + 0 * knobW2, botRowY, knobW2, rowH));
-        placeKnob(downsampleKnob, juce::Rectangle<int>(30 + 1 * knobW2, botRowY, knobW2, rowH));
-        placeKnob(bitMixKnob,     juce::Rectangle<int>(30 + 2 * knobW2, botRowY, knobW2, rowH));
-        placeKnob(duckDepthKnob,  juce::Rectangle<int>(30 + 3 * knobW2, botRowY, knobW2, rowH));
-        placeKnob(vinylDustKnob,  juce::Rectangle<int>(30 + 4 * knobW2, botRowY, knobW2, rowH));
+            // Row 1: Space & Color (6 knobs)
+            const int knobW1 = contentW / 6;
+            for (int k = 0; k < 6; ++k)
+                placeKnob(masterControls[k], juce::Rectangle<int>(30 + k * knobW1, topRowY, knobW1, rowH));
+
+            // Row 2: Lo-Fi Bits, Decimator, Ducking & Vinyl (5 knobs)
+            const int knobW2 = contentW / 5;
+            for (int k = 0; k < 5; ++k)
+                placeKnob(masterControls[6 + k], juce::Rectangle<int>(30 + k * knobW2, botRowY, knobW2, rowH));
+            break;
+        }
     }
 
     // TR-808 Sequencer Section Layout

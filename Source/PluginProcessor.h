@@ -115,7 +115,7 @@ private:
     underground::dsp::VinylNoise vinylNoise;
     juce::dsp::Gain<float> outputGain;
 
-    // Kick Engine Parameter Pointers
+    // 1. Kick Engine Parameter Pointers
     std::atomic<float>* kickPitchParam { nullptr };
     std::atomic<float>* kickTuneParam { nullptr };
     std::atomic<float>* kickSweepParam { nullptr };
@@ -123,13 +123,61 @@ private:
     std::atomic<float>* kickPunchParam { nullptr };
     std::atomic<float>* kickDriveParam { nullptr };
 
-    // Acoustic Clap Engine Parameter Pointers
+    // 2. Snare Engine Parameter Pointers
     std::atomic<float>* snarePitchParam { nullptr };
     std::atomic<float>* snareDecayParam { nullptr };
-    std::atomic<float>* snareWoodParam { nullptr };
-    std::atomic<float>* snareSlapParam { nullptr };
+    std::atomic<float>* snareSnapParam { nullptr };
     std::atomic<float>* snareToneParam { nullptr };
-    std::atomic<float>* snareTailParam { nullptr };
+    std::atomic<float>* snareCrackParam { nullptr };
+    std::atomic<float>* snareDriveParam { nullptr };
+
+    // 3. Acoustic Clap Engine Parameter Pointers
+    std::atomic<float>* clapPitchParam { nullptr };
+    std::atomic<float>* clapDecayParam { nullptr };
+    std::atomic<float>* clapWoodParam { nullptr };
+    std::atomic<float>* clapSlapParam { nullptr };
+    std::atomic<float>* clapToneParam { nullptr };
+    std::atomic<float>* clapTailParam { nullptr };
+
+    // 4. Closed Hat Engine Parameter Pointers
+    std::atomic<float>* chatPitchParam { nullptr };
+    std::atomic<float>* chatDecayParam { nullptr };
+    std::atomic<float>* chatToneParam { nullptr };
+    std::atomic<float>* chatSizzleParam { nullptr };
+    std::atomic<float>* chatResParam { nullptr };
+    std::atomic<float>* chatDriveParam { nullptr };
+
+    // 5. Open Hat Engine Parameter Pointers
+    std::atomic<float>* ohatPitchParam { nullptr };
+    std::atomic<float>* ohatDecayParam { nullptr };
+    std::atomic<float>* ohatToneParam { nullptr };
+    std::atomic<float>* ohatSizzleParam { nullptr };
+    std::atomic<float>* ohatChokeParam { nullptr };
+    std::atomic<float>* ohatDriveParam { nullptr };
+
+    // 6. Rimshot Engine Parameter Pointers
+    std::atomic<float>* rimPitchParam { nullptr };
+    std::atomic<float>* rimDecayParam { nullptr };
+    std::atomic<float>* rimTuneParam { nullptr };
+    std::atomic<float>* rimSnapParam { nullptr };
+    std::atomic<float>* rimToneParam { nullptr };
+    std::atomic<float>* rimDriveParam { nullptr };
+
+    // 7. Sub 808 Engine Parameter Pointers
+    std::atomic<float>* subTuneParam { nullptr };
+    std::atomic<float>* subDecayParam { nullptr };
+    std::atomic<float>* subSweepParam { nullptr };
+    std::atomic<float>* subDriveParam { nullptr };
+    std::atomic<float>* subCutoffParam { nullptr };
+    std::atomic<float>* subLevelParam { nullptr };
+
+    // 8. Shaker & Vinyl Engine Parameter Pointers
+    std::atomic<float>* shakerAttackParam { nullptr };
+    std::atomic<float>* shakerDecayParam { nullptr };
+    std::atomic<float>* shakerToneParam { nullptr };
+    std::atomic<float>* vinylCrackleParam { nullptr };
+    std::atomic<float>* vinylHissParam { nullptr };
+    std::atomic<float>* shakerDriveParam { nullptr };
 
     // Master DSP, Dub Echo & Room Ambience Parameter Pointers
     std::atomic<float>* roomMixParam { nullptr };

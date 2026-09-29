@@ -233,17 +233,17 @@ public:
                 if (pattern[0][step].load(std::memory_order_relaxed))
                     midiMessages.addEvent(juce::MidiMessage::noteOn(1, 36, 1.0f), sampleIdx);
 
-                // Track 1: CLAP (Note 38)
+                // Track 1: SNARE (Note 38)
                 if (pattern[1][step].load(std::memory_order_relaxed))
                     midiMessages.addEvent(juce::MidiMessage::noteOn(1, 38, 1.0f), sampleIdx);
 
-                // Track 2: CLOSED HAT (Note 42)
+                // Track 2: CLAP (Note 39)
                 if (pattern[2][step].load(std::memory_order_relaxed))
-                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, 42, 0.85f), sampleIdx);
+                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, 39, 1.0f), sampleIdx);
 
-                // Track 3: OPEN HAT / PERC (Note 46)
+                // Track 3: CLOSED HAT (Note 42)
                 if (pattern[3][step].load(std::memory_order_relaxed))
-                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, 46, 0.90f), sampleIdx);
+                    midiMessages.addEvent(juce::MidiMessage::noteOn(1, 42, 0.85f), sampleIdx);
 
                 // Advance step
                 const int nextStep = (step + 1) % numSteps;

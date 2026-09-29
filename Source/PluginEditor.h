@@ -33,14 +33,14 @@ public:
                           float rotaryEndAngle, juce::Slider&) override
     {
         auto bounds = juce::Rectangle<float>(static_cast<float>(x), static_cast<float>(y),
-                                             static_cast<float>(width), static_cast<float>(height)).reduced(5.0f);
+                                             static_cast<float>(width), static_cast<float>(height)).reduced(4.0f);
 
         auto radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) / 2.0f;
         auto toAngle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
         auto centre = bounds.getCentre();
 
         // 1. Off-white Outer Dial Disc
-        auto outerRadius = radius - 3.0f;
+        auto outerRadius = radius - 2.5f;
         g.setColour(juce::Colour(0xFFEDEDF0));
         g.fillEllipse(centre.x - outerRadius, centre.y - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f);
 
@@ -49,19 +49,19 @@ public:
         g.drawEllipse(centre.x - outerRadius, centre.y - outerRadius, outerRadius * 2.0f, outerRadius * 2.0f, 1.0f);
 
         // 2. Radial Tick Marks around the perimeter
-        const int numTicks = 24;
+        const int numTicks = 20;
         for (int i = 0; i < numTicks; ++i)
         {
             const float tickAngle = rotaryStartAngle + (static_cast<float>(i) / static_cast<float>(numTicks - 1)) * (rotaryEndAngle - rotaryStartAngle);
             const auto pOuter = centre.getPointOnCircumference(outerRadius - 2.0f, tickAngle);
-            const auto pInner = centre.getPointOnCircumference(outerRadius - (i % 6 == 0 ? 7.0f : 4.5f), tickAngle);
+            const auto pInner = centre.getPointOnCircumference(outerRadius - (i % 5 == 0 ? 6.0f : 4.0f), tickAngle);
 
-            g.setColour(i % 6 == 0 ? juce::Colour(0xFF1A1C20) : juce::Colour(0xFFA0A4AC));
-            g.drawLine(pInner.x, pInner.y, pOuter.x, pOuter.y, i % 6 == 0 ? 1.4f : 0.9f);
+            g.setColour(i % 5 == 0 ? juce::Colour(0xFF1A1C20) : juce::Colour(0xFFA0A4AC));
+            g.drawLine(pInner.x, pInner.y, pOuter.x, pOuter.y, i % 5 == 0 ? 1.4f : 0.85f);
         }
 
         // 3. Red Accent Indicator Dot at current angle
-        const auto redDotPos = centre.getPointOnCircumference(outerRadius - 5.0f, toAngle);
+        const auto redDotPos = centre.getPointOnCircumference(outerRadius - 4.5f, toAngle);
         g.setColour(juce::Colour(0xFFFF3B30));
         g.fillEllipse(redDotPos.x - 2.5f, redDotPos.y - 2.5f, 5.0f, 5.0f);
 
@@ -76,7 +76,7 @@ public:
         {
             const float spokeAngle = toAngle + i * (juce::MathConstants<float>::twoPi / 3.0f);
             const auto spokePt = centre.getPointOnCircumference(spokeRadius, spokeAngle);
-            g.fillEllipse(spokePt.x - 2.5f, spokePt.y - 2.5f, 5.0f, 5.0f);
+            g.fillEllipse(spokePt.x - 2.0f, spokePt.y - 2.0f, 4.0f, 4.0f);
         }
 
         g.fillEllipse(centre.x - 2.0f, centre.y - 2.0f, 4.0f, 4.0f);
@@ -104,7 +104,13 @@ public:
     enum class SoundTab
     {
         Kick = 0,
-        SnareClap,
+        Snare,
+        Clap,
+        ClosedHat,
+        OpenHat,
+        Rimshot,
+        Sub808,
+        Shaker,
         MasterDSP
     };
 
@@ -137,40 +143,28 @@ private:
     std::array<float, numVisualizerCols> visualizerBarHeights {};
     float liveVisualizerPeak { 0.0f };
 
-    // Tab Navigation Buttons
-    juce::TextButton kickTabButton;
-    juce::TextButton snareTabButton;
-    juce::TextButton masterTabButton;
-    SoundTab activeTab { SoundTab::SnareClap };
+    // 9 Sound Selection Tab Buttons (8 Sounds + Master DSP)
+    std::array<juce::TextButton, 9> tabButtons;
+    SoundTab activeTab { SoundTab::Snare };
 
-    // TAB 1: KICK CONTROLS (6 Knobs)
-    RotaryControl kickPitchKnob;
-    RotaryControl kickTuneKnob;
-    RotaryControl kickSweepKnob;
-    RotaryControl kickDecayKnob;
-    RotaryControl kickPunchKnob;
-    RotaryControl kickDriveKnob;
-
-    // TAB 2: ACOUSTIC CLAP CONTROLS (6 Knobs)
-    RotaryControl snarePitchKnob;
-    RotaryControl snareDecayKnob;
-    RotaryControl snareWoodKnob;
-    RotaryControl snareSlapKnob;
-    RotaryControl snareToneKnob;
-    RotaryControl snareTailKnob;
-
-    // TAB 3: MASTER DSP, BITS, REVERB & DUCKING CONTROLS (11 Knobs)
-    RotaryControl roomMixKnob;
-    RotaryControl roomSizeKnob;
-    RotaryControl echoMixKnob;
-    RotaryControl driveKnob;
-    RotaryControl cutoffKnob;
-    RotaryControl bitDepthKnob;
-    RotaryControl downsampleKnob;
-    RotaryControl bitMixKnob;
-    RotaryControl duckDepthKnob;
-    RotaryControl vinylDustKnob;
-    RotaryControl outputGainKnob;
+    // 1. KICK (6 Knobs)
+    std::array<RotaryControl, 6> kickControls;
+    // 2. SNARE (6 Knobs)
+    std::array<RotaryControl, 6> snareControls;
+    // 3. CLAP (6 Knobs)
+    std::array<RotaryControl, 6> clapControls;
+    // 4. CLOSED HAT (6 Knobs)
+    std::array<RotaryControl, 6> chatControls;
+    // 5. OPEN HAT (6 Knobs)
+    std::array<RotaryControl, 6> ohatControls;
+    // 6. RIMSHOT (6 Knobs)
+    std::array<RotaryControl, 6> rimControls;
+    // 7. SUB 808 (6 Knobs)
+    std::array<RotaryControl, 6> subControls;
+    // 8. SHAKER (6 Knobs)
+    std::array<RotaryControl, 6> shakerControls;
+    // 9. MASTER DSP (11 Knobs)
+    std::array<RotaryControl, 11> masterControls;
 
     // TR-808 Style Step Sequencer UI Components
     juce::TextButton playButton;
