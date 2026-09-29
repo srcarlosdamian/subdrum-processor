@@ -17,18 +17,19 @@ public:
 
     void prepare(const juce::dsp::ProcessSpec& spec)
     {
-        sampleRate = spec.sampleRate;
-        numChannels = spec.numChannels;
+        sampleRate = spec.sampleRate > 0.0 ? spec.sampleRate : 44100.0;
+        numChannels = juce::jmax((size_t)1, (size_t)spec.numChannels);
+        maxBlockSize = juce::jmax((size_t)spec.maximumBlockSize, (size_t)4096);
 
         // 4x Oversampling (factor 2^2 = 4)
         oversampling = std::make_unique<juce::dsp::Oversampling<float>>(
-            numChannels,
+            static_cast<juce::uint32>(numChannels),
             2, // 2 stages = 4x
             juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
             true, // isMaxLatency
             false // useIntegerDelay
         );
-        oversampling->initProcessing(spec.maximumBlockSize);
+        oversampling->initProcessing(maxBlockSize);
 
         // Prepare DC Blockers for each channel (high-pass at ~15 Hz)
         dcBlockers.resize(numChannels);
@@ -79,10 +80,36 @@ public:
         const size_t numSamples = inputBlock.getNumSamples();
         const size_t channels = inputBlock.getNumChannels();
 
+        if (channels == 0 || numSamples == 0)
+            return;
+
         if (context.isBypassed)
         {
             outputBlock.copyFrom(inputBlock);
             return;
+        }
+
+        // Dynamically reallocate oversampling if audio device switch changes channel count or block size
+        if (oversampling == nullptr || channels != numChannels || numSamples > maxBlockSize)
+        {
+            numChannels = channels;
+            maxBlockSize = juce::jmax(numSamples, (size_t)4096);
+            oversampling = std::make_unique<juce::dsp::Oversampling<float>>(
+                static_cast<juce::uint32>(numChannels),
+                2,
+                juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
+                true,
+                false
+            );
+            oversampling->initProcessing(maxBlockSize);
+
+            dcBlockers.resize(numChannels);
+            auto dcCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate > 0.0 ? sampleRate : 44100.0, 15.0f);
+            for (auto& dc : dcBlockers)
+            {
+                dc.coefficients = dcCoeffs;
+                dc.reset();
+            }
         }
 
         // 1. Oversample Input Block (4x)
@@ -146,6 +173,7 @@ public:
 private:
     double sampleRate { 44100.0 };
     size_t numChannels { 2 };
+    size_t maxBlockSize { 4096 };
 
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampling;
     std::vector<juce::dsp::IIR::Filter<float>> dcBlockers;
