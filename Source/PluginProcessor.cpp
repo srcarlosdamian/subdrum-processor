@@ -117,7 +117,7 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
             {
                 { "kickPitch", 0.0f }, { "kickTune", 54.0f }, { "kickSweep", 175.0f }, { "kickDecay", 175.0f }, { "kickPunch", 85.0f }, { "kickDrive", 60.0f },
                 { "snarePitch", 0.0f }, { "snareDecay", 180.0f }, { "snareSnap", 85.0f }, { "snareTone", 195.0f }, { "snareCrack", 80.0f }, { "snareDrive", 40.0f },
-                { "clapPitch", 0.0f }, { "clapDecay", 180.0f }, { "clapWood", 85.0f }, { "clapSlap", 90.0f }, { "clapTone", 7500.0f }, { "clapTail", 40.0f },
+                { "clapPitch", 0.0f }, { "clapDecay", 160.0f }, { "clapWood", 92.0f }, { "clapSlap", 85.0f }, { "clapTone", 6800.0f }, { "clapTail", 35.0f },
                 { "chatPitch", 0.0f }, { "chatDecay", 45.0f }, { "chatTone", 9500.0f }, { "chatSizzle", 60.0f }, { "chatRes", 2.0f }, { "chatDrive", 30.0f },
                 { "ohatPitch", 0.0f }, { "ohatDecay", 320.0f }, { "ohatTone", 8500.0f }, { "ohatSizzle", 70.0f }, { "ohatChoke", 100.0f }, { "ohatDrive", 35.0f },
                 { "rimPitch", 0.0f }, { "rimDecay", 28.0f }, { "rimTune", 480.0f }, { "rimSnap", 85.0f }, { "rimTone", 6000.0f }, { "rimDrive", 40.0f },
@@ -359,11 +359,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
 
     // --- 3. ACOUSTIC CLAP PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapPitch", 1 }, "Clap Pitch", juce::NormalisableRange<float>(-24.0f, 12.0f, 1.0f), 0.0f, juce::AudioParameterFloatAttributes().withLabel("st")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapDecay", 1 }, "Clap Decay", juce::NormalisableRange<float>(30.0f, 500.0f, 1.0f, 0.4f), 180.0f, juce::AudioParameterFloatAttributes().withLabel("ms")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapWood", 1 }, "Acoustic Wood", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 85.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapSlap", 1 }, "Slap Smack", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 90.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapTone", 1 }, "Noise Filter", juce::NormalisableRange<float>(1000.0f, 16000.0f, 10.0f, 0.35f), 7500.0f, juce::AudioParameterFloatAttributes().withLabel("Hz")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapTail", 1 }, "Room Tail", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 40.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapDecay", 1 }, "Clap Decay", juce::NormalisableRange<float>(30.0f, 500.0f, 1.0f, 0.4f), 160.0f, juce::AudioParameterFloatAttributes().withLabel("ms")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapWood", 1 }, "Acoustic Wood", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 92.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapSlap", 1 }, "Slap Smack", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 85.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapTone", 1 }, "Noise Filter", juce::NormalisableRange<float>(1000.0f, 16000.0f, 10.0f, 0.35f), 6800.0f, juce::AudioParameterFloatAttributes().withLabel("Hz")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "clapTail", 1 }, "Room Tail", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 35.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // --- 4. CLOSED HAT PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatPitch", 1 }, "Hat Pitch", juce::NormalisableRange<float>(-12.0f, 12.0f, 1.0f), 0.0f, juce::AudioParameterFloatAttributes().withLabel("st")));

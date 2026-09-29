@@ -139,9 +139,9 @@ public:
             case RhythmPreset::TwoStepClassic:
                 // Kick: 1 (0), 2.3 (6), 3.3 (10)
                 pattern[0][0].store(true); pattern[0][6].store(true); pattern[0][10].store(true);
-                // Snare: Beat 2 (4), Beat 4 (12)
-                pattern[1][4].store(true); pattern[1][12].store(true);
-                // Clap: layered on Beat 4 (12)
+                // Snare: Beat 2 (step 4)
+                pattern[1][4].store(true);
+                // Clap: Beat 4 (step 12) - single clean acoustic clap
                 pattern[2][12].store(true);
                 // Closed Hat: shuffling 16ths
                 pattern[3][2].store(true); pattern[3][4].store(true); pattern[3][6].store(true);
@@ -150,7 +150,7 @@ public:
 
             case RhythmPreset::SyncopatedGarage:
                 pattern[0][0].store(true); pattern[0][7].store(true); pattern[0][10].store(true);
-                pattern[1][4].store(true); pattern[1][12].store(true); pattern[1][15].store(true);
+                pattern[1][4].store(true); pattern[1][15].store(true);
                 pattern[2][12].store(true);
                 for (int s : { 0, 2, 4, 6, 8, 10, 11, 12, 14 }) pattern[3][s].store(true);
                 break;
@@ -158,28 +158,27 @@ public:
             case RhythmPreset::HalfStepDub:
                 pattern[0][0].store(true); pattern[0][10].store(true);
                 pattern[1][8].store(true); // Half-step snare on Beat 3 (step 8)
-                pattern[2][8].store(true);
                 for (int s = 0; s < 16; s += 2) pattern[3][s].store(true);
                 break;
 
             case RhythmPreset::BrokenBeat:
                 pattern[0][0].store(true); pattern[0][3].store(true); pattern[0][8].store(true); pattern[0][11].store(true);
-                pattern[1][4].store(true); pattern[1][12].store(true); pattern[1][14].store(true);
+                pattern[1][12].store(true); pattern[1][14].store(true);
                 pattern[2][4].store(true);
                 for (int s : { 2, 5, 8, 10, 13 }) pattern[3][s].store(true);
                 break;
 
             case RhythmPreset::StraightFour:
                 for (int s = 0; s < 16; s += 4) pattern[0][s].store(true);
-                pattern[1][4].store(true); pattern[1][12].store(true);
+                pattern[1][4].store(true);
                 pattern[2][12].store(true);
                 for (int s = 2; s < 16; s += 4) pattern[3][s].store(true);
                 break;
 
             case RhythmPreset::GhostClap:
                 pattern[0][0].store(true); pattern[0][8].store(true);
-                pattern[1][4].store(true); pattern[1][12].store(true);
-                pattern[2][4].store(true); pattern[2][11].store(true); pattern[2][12].store(true);
+                pattern[1][4].store(true);
+                pattern[2][11].store(true); pattern[2][12].store(true);
                 for (int s = 0; s < 16; s += 2) pattern[3][s].store(true);
                 break;
 

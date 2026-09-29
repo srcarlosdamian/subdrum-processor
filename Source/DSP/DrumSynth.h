@@ -87,14 +87,11 @@ public:
         snarePhase = 0.0f;
 
         // Clap
-        clapSampleCounter = 999999;
-        clapBurst1Env = 0.0f;
-        clapBurst2Env = 0.0f;
-        clapBurst3Env = 0.0f;
+        clapVelocity = 0.0f;
+        clapEnv = 0.0f;
+        clapTransientEnv = 0.0f;
         clapBodyPhase1 = 0.0f;
         clapBodyPhase2 = 0.0f;
-        clapBodyEnv = 0.0f;
-        clapVelocity = 0.0f;
 
         // Hats
         closedHatEnv = 0.0f;
@@ -119,6 +116,7 @@ public:
         snareBodyFilter.reset();
         snareWiresFilter.reset();
         snareCrackFilter.reset();
+        clapHighPass.reset();
         clapBodyLowFilter.reset();
         clapWoodFilter.reset();
         clapSlapFilter.reset();
@@ -258,11 +256,8 @@ public:
             else if (note == 39)
             {
                 clapVelocity = vel;
-                clapSampleCounter = 0;
-                clapBurst1Env = vel * 1.4f;
-                clapBurst2Env = 0.0f;
-                clapBurst3Env = 0.0f;
-                clapBodyEnv = vel * 1.25f;
+                clapEnv = vel * 1.5f;
+                clapTransientEnv = vel * 1.8f;
                 clapBodyPhase1 = 0.0f;
                 clapBodyPhase2 = 0.0f;
             }
@@ -341,12 +336,8 @@ public:
         const float woodGain = clapWoodLevel.load(std::memory_order_relaxed);
         const float slapGain = clapSlapLevel.load(std::memory_order_relaxed);
         const float roomGain = clapRoomTail.load(std::memory_order_relaxed);
-
-        const int tap2Sample = static_cast<int>(0.0028f * static_cast<float>(sampleRate));
-        const int tap3Sample = static_cast<int>(0.0058f * static_cast<float>(sampleRate));
-        const float clMicroDecay = std::exp(-1.0f / (0.009f * static_cast<float>(sampleRate)));
-        const float clMainDecay  = std::exp(-1.0f / (juce::jmax(0.01f, clDecaySec * 0.38f) * static_cast<float>(sampleRate)));
-        const float clBodyDecay  = std::exp(-1.0f / (0.032f * static_cast<float>(sampleRate)));
+        const float clTransientDecay = std::exp(-1.0f / (0.014f * static_cast<float>(sampleRate)));
+        const float clMainDecay      = std::exp(-1.0f / (juce::jmax(0.01f, clDecaySec * 0.42f) * static_cast<float>(sampleRate)));
 
         // Hats Decay Coefficients
         const float chatDecay = std::exp(-1.0f / ((chatDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
@@ -424,52 +415,43 @@ public:
                 snareWiresEnv *= snareWiresDecay;
             }
 
-            // 3. ACOUSTIC CLAP VOICE
-            if (clapSampleCounter < 999990)
+            // 3. ACOUSTIC CLAP VOICE (Calibrated to spectrogram: 1020Hz wood hotspot, 520Hz cavity, 2400Hz snap, 130Hz high-pass, single hit)
+            if (clapEnv > 1.0e-4f || clapTransientEnv > 1.0e-4f)
             {
-                if (clapSampleCounter == tap2Sample)
-                    clapBurst2Env = clapVelocity * 1.25f;
-                else if (clapSampleCounter == tap3Sample)
-                    clapBurst3Env = clapVelocity * 1.6f;
+                const float whiteNoise = nextRandomFloat() * 2.0f - 1.0f;
+                const float snapExcitation = whiteNoise * clapTransientEnv;
 
-                const float totalClapEnv = clapBurst1Env + clapBurst2Env + clapBurst3Env;
-                if (totalClapEnv > 1.0e-4f || clapBodyEnv > 1.0e-4f)
-                {
-                    const float whiteNoise = nextRandomFloat() * 2.0f - 1.0f;
-                    const float noiseBurst = whiteNoise * totalClapEnv;
+                const float bodySine1 = std::sin(clapBodyPhase1);
+                const float bodySine2 = std::sin(clapBodyPhase2) * 0.45f;
+                const float physicalSine = (bodySine1 + bodySine2) * clapEnv;
 
-                    const float woodFormant = clapWoodFilter.processSample(noiseBurst);
-                    const float slapSmack   = clapSlapFilter.processSample(noiseBurst);
-                    const float airFizz     = clapAirFilter.processSample(noiseBurst);
+                clapBodyPhase1 += twoPi * (520.0f * clPitchRatio) * samplePeriod;
+                if (clapBodyPhase1 >= twoPi) clapBodyPhase1 -= twoPi;
 
-                    const float bodySine1 = std::sin(clapBodyPhase1);
-                    const float bodySine2 = std::sin(clapBodyPhase2) * 0.5f;
-                    const float physicalBody = (bodySine1 + bodySine2) * clapBodyEnv;
+                clapBodyPhase2 += twoPi * (1020.0f * clPitchRatio) * samplePeriod;
+                if (clapBodyPhase2 >= twoPi) clapBodyPhase2 -= twoPi;
 
-                    clapBodyPhase1 += twoPi * (240.0f * clPitchRatio) * samplePeriod;
-                    if (clapBodyPhase1 >= twoPi) clapBodyPhase1 -= twoPi;
+                const float woodExcitation = whiteNoise * (clapEnv * 0.5f) + physicalSine * 0.5f + snapExcitation * 0.4f;
+                const float cavityExcitation = whiteNoise * (clapEnv * 0.35f) + physicalSine * 0.65f;
 
-                    clapBodyPhase2 += twoPi * (580.0f * clPitchRatio) * samplePeriod;
-                    if (clapBodyPhase2 >= twoPi) clapBodyPhase2 -= twoPi;
+                const float woodFormant     = clapWoodFilter.processSample(woodExcitation);
+                const float cavityResonance = clapBodyLowFilter.processSample(cavityExcitation);
+                const float slapSmack       = clapSlapFilter.processSample(snapExcitation);
+                const float airFizz         = clapAirFilter.processSample(snapExcitation * 0.35f + woodExcitation * 0.15f);
 
-                    const float cavityResonance = clapBodyLowFilter.processSample(noiseBurst + physicalBody * 0.6f);
+                const float rawClapSum = cavityResonance * (1.15f * woodGain)
+                                       + woodFormant * (1.65f * woodGain)
+                                       + slapSmack * (1.35f * slapGain)
+                                       + airFizz * (0.35f * roomGain)
+                                       + physicalSine * (0.25f * woodGain);
 
-                    const float rawClapSum = physicalBody * (0.85f * woodGain)
-                                           + cavityResonance * (1.1f * woodGain)
-                                           + woodFormant * (1.3f * woodGain)
-                                           + slapSmack * (1.5f * slapGain)
-                                           + airFizz * (0.35f * roomGain);
+                const float filteredClap = clapToneLowPass.processSample(rawClapSum);
+                const float finalAcousticClap = clapHighPass.processSample(filteredClap);
 
-                    const float filteredClap = clapToneLowPass.processSample(rawClapSum);
-                    synthSample += std::tanh(filteredClap * 1.6f) * 1.25f;
+                synthSample += std::tanh(finalAcousticClap * 1.55f) * 1.25f;
 
-                    clapBurst1Env *= clMicroDecay;
-                    clapBurst2Env *= clMicroDecay;
-                    clapBurst3Env *= clMainDecay;
-                    clapBodyEnv   *= clBodyDecay;
-                }
-
-                ++clapSampleCounter;
+                clapTransientEnv *= clTransientDecay;
+                clapEnv          *= clMainDecay;
             }
 
             // 4. CLOSED & OPEN HI-HATS
@@ -588,19 +570,22 @@ public:
 private:
     void updateClapFilters()
     {
-        clapBodyLowFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 680.0f, 2.5f);
+        clapHighPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 130.0f, 0.707f);
+        clapHighPass.reset();
+
+        clapBodyLowFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 520.0f, 2.8f);
         clapBodyLowFilter.reset();
 
-        clapWoodFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1050.0f, 3.0f);
+        clapWoodFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1020.0f, 3.8f);
         clapWoodFilter.reset();
 
-        clapSlapFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 2600.0f, 2.8f);
+        clapSlapFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 2400.0f, 2.6f);
         clapSlapFilter.reset();
 
-        clapAirFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 5800.0f, 1.6f);
+        clapAirFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 4800.0f, 1.8f);
         clapAirFilter.reset();
 
-        clapToneLowPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 7500.0f, 0.707f);
+        clapToneLowPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 6800.0f, 0.707f);
         clapToneLowPass.reset();
     }
 
@@ -651,21 +636,19 @@ private:
 
     // 3. Acoustic Clap State & Parameters
     std::atomic<float> clapPitchSemi { 0.0f };
-    std::atomic<float> clapDecayMs { 180.0f };
-    std::atomic<float> clapWoodLevel { 0.85f };
-    std::atomic<float> clapSlapLevel { 0.90f };
-    std::atomic<float> clapRoomTail { 0.40f };
-    float lastToneHz { 7500.0f };
+    std::atomic<float> clapDecayMs { 160.0f };
+    std::atomic<float> clapWoodLevel { 0.90f };
+    std::atomic<float> clapSlapLevel { 0.85f };
+    std::atomic<float> clapRoomTail { 0.35f };
+    float lastToneHz { 6800.0f };
 
-    int clapSampleCounter { 999999 };
     float clapVelocity { 1.0f };
-    float clapBurst1Env { 0.0f };
-    float clapBurst2Env { 0.0f };
-    float clapBurst3Env { 0.0f };
+    float clapEnv { 0.0f };
+    float clapTransientEnv { 0.0f };
     float clapBodyPhase1 { 0.0f };
     float clapBodyPhase2 { 0.0f };
-    float clapBodyEnv { 0.0f };
 
+    juce::dsp::IIR::Filter<float> clapHighPass;
     juce::dsp::IIR::Filter<float> clapBodyLowFilter;
     juce::dsp::IIR::Filter<float> clapWoodFilter;
     juce::dsp::IIR::Filter<float> clapSlapFilter;
