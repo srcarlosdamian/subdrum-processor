@@ -30,7 +30,7 @@ public:
 
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
                           float sliderPosProportional, float rotaryStartAngle,
-                          float rotaryEndAngle, juce::Slider& slider) override
+                          float rotaryEndAngle, juce::Slider&) override
     {
         auto bounds = juce::Rectangle<float>(static_cast<float>(x), static_cast<float>(y),
                                              static_cast<float>(width), static_cast<float>(height)).reduced(5.0f);
@@ -124,8 +124,13 @@ private:
     SubdrumProcessorAudioProcessor& audioProcessor;
     IndustrialDotMatrixLookAndFeel industrialLookAndFeel;
 
-    // Preset Selector UI
+    // Header Controls: Presets, Rhythms, and Import/Export
     juce::ComboBox presetComboBox;
+    juce::ComboBox rhythmComboBox;
+    juce::TextButton saveButton;
+    juce::TextButton exportButton;
+    juce::TextButton importButton;
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     // Visualizer Bars Animation State
     static constexpr int numVisualizerCols = 32;
@@ -136,9 +141,9 @@ private:
     juce::TextButton kickTabButton;
     juce::TextButton snareTabButton;
     juce::TextButton masterTabButton;
-    SoundTab activeTab { SoundTab::Kick };
+    SoundTab activeTab { SoundTab::SnareClap };
 
-    // TAB 1: KICK CONTROLS
+    // TAB 1: KICK CONTROLS (6 Knobs)
     RotaryControl kickPitchKnob;
     RotaryControl kickTuneKnob;
     RotaryControl kickSweepKnob;
@@ -146,7 +151,7 @@ private:
     RotaryControl kickPunchKnob;
     RotaryControl kickDriveKnob;
 
-    // TAB 2: ACOUSTIC CLAP CONTROLS
+    // TAB 2: ACOUSTIC CLAP CONTROLS (6 Knobs)
     RotaryControl snarePitchKnob;
     RotaryControl snareDecayKnob;
     RotaryControl snareWoodKnob;
@@ -154,31 +159,35 @@ private:
     RotaryControl snareToneKnob;
     RotaryControl snareTailKnob;
 
-    // TAB 3: MASTER DSP, DUB ECHO & ROOM AMBIENCE CONTROLS
+    // TAB 3: MASTER DSP, BITS, REVERB & DUCKING CONTROLS (11 Knobs)
     RotaryControl roomMixKnob;
     RotaryControl roomSizeKnob;
     RotaryControl echoMixKnob;
     RotaryControl driveKnob;
     RotaryControl cutoffKnob;
+    RotaryControl bitDepthKnob;
+    RotaryControl downsampleKnob;
+    RotaryControl bitMixKnob;
+    RotaryControl duckDepthKnob;
+    RotaryControl vinylDustKnob;
     RotaryControl outputGainKnob;
 
     // TR-808 Style Step Sequencer UI Components
     juce::TextButton playButton;
+    juce::TextButton hostSyncButton;
     juce::Slider bpmSlider;
+    juce::Slider swingSlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> swingAttachment;
     juce::TextButton clearPatternButton;
-    juce::TextButton defaultPatternButton;
 
-    juce::Label kickTrackLabel;
-    juce::Label snareTrackLabel;
-    std::array<juce::TextButton, 16> kickStepButtons;
-    std::array<juce::TextButton, 16> snareStepButtons;
+    // 4 Tracks x 16 Steps
+    std::array<juce::Label, 4> trackLabels;
+    std::array<std::array<juce::TextButton, 16>, 4> stepButtons;
 
     void updateSequencerButtonColours();
 
-    // Interactive Drum Pads (Strictly 2 Active Sounds)
-    juce::TextButton kickPad;
-    juce::TextButton snarePad;
-    std::array<juce::TextButton, 6> emptyPads;
+    // 8 Interactive Performance Drum Pads
+    std::array<juce::TextButton, 8> drumPads;
 
     int octaveOffset { 0 };
 

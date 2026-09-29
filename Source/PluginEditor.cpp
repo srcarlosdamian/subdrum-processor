@@ -7,7 +7,7 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
 {
     setLookAndFeel(&industrialLookAndFeel);
 
-    // Preset Selector Setup
+    // 1. Presets Selector Setup
     const auto& presets = audioProcessor.getPresets();
     for (size_t i = 0; i < presets.size(); ++i)
     {
@@ -24,6 +24,93 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
         }
     };
     addAndMakeVisible(presetComboBox);
+
+    // 2. Rhythms Selector Setup
+    rhythmComboBox.addItem("RHYTHM: 2-Step Classic", 1);
+    rhythmComboBox.addItem("RHYTHM: Syncopated Garage", 2);
+    rhythmComboBox.addItem("RHYTHM: Half-Step Heavy Dub", 3);
+    rhythmComboBox.addItem("RHYTHM: Broken Beat Shuffle", 4);
+    rhythmComboBox.addItem("RHYTHM: Straight 4-on-Floor", 5);
+    rhythmComboBox.addItem("RHYTHM: Ghost Clap & Sub", 6);
+    rhythmComboBox.addItem("RHYTHM: Clear All Steps", 7);
+    rhythmComboBox.setSelectedId(1, juce::dontSendNotification);
+    rhythmComboBox.setWantsKeyboardFocus(false);
+    rhythmComboBox.onChange = [this]()
+    {
+        const int sel = rhythmComboBox.getSelectedId() - 1;
+        if (sel >= 0)
+        {
+            audioProcessor.loadRhythmPreset(sel);
+            updateSequencerButtonColours();
+        }
+    };
+    addAndMakeVisible(rhythmComboBox);
+
+    // 3. Save, Export, Import Preset Buttons
+    saveButton.setButtonText("SAVE");
+    saveButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF323640));
+    saveButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEDEDF0));
+    saveButton.setWantsKeyboardFocus(false);
+    saveButton.onClick = [this]()
+    {
+        // Save current parameters into memory
+        saveButton.setButtonText("SAVED ✓");
+        juce::Timer::callAfterDelay(1500, [this]() { saveButton.setButtonText("SAVE"); });
+    };
+    addAndMakeVisible(saveButton);
+
+    exportButton.setButtonText("EXPORT");
+    exportButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF323640));
+    exportButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEDEDF0));
+    exportButton.setWantsKeyboardFocus(false);
+    exportButton.onClick = [this]()
+    {
+        fileChooser = std::make_unique<juce::FileChooser>(
+            "Export Preset (.json)",
+            juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("MyPreset.json"),
+            "*.json");
+
+        const auto flags = juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting;
+        fileChooser->launchAsync(flags, [this](const juce::FileChooser& fc)
+        {
+            auto result = fc.getResult();
+            if (result != juce::File())
+            {
+                if (!result.hasFileExtension(".json"))
+                    result = result.withFileExtension(".json");
+                audioProcessor.exportPresetToFile(result);
+            }
+        });
+    };
+    addAndMakeVisible(exportButton);
+
+    importButton.setButtonText("IMPORT");
+    importButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF323640));
+    importButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEDEDF0));
+    importButton.setWantsKeyboardFocus(false);
+    importButton.onClick = [this]()
+    {
+        fileChooser = std::make_unique<juce::FileChooser>(
+            "Import Preset (.json)",
+            juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+            "*.json");
+
+        const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+        fileChooser->launchAsync(flags, [this](const juce::FileChooser& fc)
+        {
+            auto result = fc.getResult();
+            if (result.existsAsFile())
+            {
+                if (audioProcessor.importPresetFromFile(result))
+                {
+                    updateSequencerButtonColours();
+                    bpmSlider.setValue(audioProcessor.getSequencer().getBpm(), juce::dontSendNotification);
+                    swingSlider.setValue(audioProcessor.getSequencer().getSwing(), juce::dontSendNotification);
+                }
+            }
+        });
+    };
+    addAndMakeVisible(importButton);
 
     // Tab Navigation Buttons Setup
     auto setupTabBtn = [this](juce::TextButton& btn, const juce::String& text, SoundTab tab)
@@ -54,15 +141,20 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     setupControl(snareToneKnob,  "snareTone",  "Noise Filter");
     setupControl(snareTailKnob,  "snareTail",  "Room Tail");
 
-    // 3. MASTER DSP, DUB ECHO & ROOM AMBIENCE CONTROLS (6 Knobs)
-    setupControl(roomMixKnob,    "roomMix",    "Room Space");
-    setupControl(roomSizeKnob,   "roomSize",   "Room Size");
-    setupControl(echoMixKnob,    "echoMix",    "Dub Echo");
-    setupControl(driveKnob,      "drive",      "Tape Drive");
-    setupControl(cutoffKnob,     "cutoff",     "Master Cutoff");
-    setupControl(outputGainKnob, "outputGain", "Master Gain");
+    // 3. MASTER DSP, BITS, REVERB & DUCKING CONTROLS (11 Knobs)
+    setupControl(roomMixKnob,     "roomMix",    "Room Space");
+    setupControl(roomSizeKnob,    "roomSize",   "Room Size");
+    setupControl(echoMixKnob,     "echoMix",    "Dub Echo");
+    setupControl(driveKnob,       "drive",      "Tape Drive");
+    setupControl(cutoffKnob,      "cutoff",     "Master Filter");
+    setupControl(bitDepthKnob,    "bitDepth",   "Bit Depth");
+    setupControl(downsampleKnob,  "downsample", "Downsample");
+    setupControl(bitMixKnob,      "bitMix",     "Lo-Fi Bits");
+    setupControl(duckDepthKnob,   "duckDepth",  "Sidechain Duck");
+    setupControl(vinylDustKnob,   "vinylDust",  "Dust Crackle");
+    setupControl(outputGainKnob,  "outputGain", "Master Gain");
 
-    // TR-808 Sequencer Transport Setup
+    // TR-808 Style Sequencer Transport Setup
     playButton.setButtonText("▶ PLAY");
     playButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF14161A));
     playButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEDEDF0));
@@ -75,6 +167,19 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
         updateSequencerButtonColours();
     };
     addAndMakeVisible(playButton);
+
+    hostSyncButton.setButtonText("DAW SYNC: ON");
+    hostSyncButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF233D4D));
+    hostSyncButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEDEDF0));
+    hostSyncButton.setWantsKeyboardFocus(false);
+    hostSyncButton.onClick = [this]()
+    {
+        const bool cur = audioProcessor.getSequencer().isHostSyncEnabled();
+        audioProcessor.getSequencer().setHostSync(!cur);
+        hostSyncButton.setButtonText(!cur ? "DAW SYNC: ON" : "DAW SYNC: OFF");
+        hostSyncButton.setColour(juce::TextButton::buttonColourId, !cur ? juce::Colour(0xFF233D4D) : juce::Colour(0xFF454B54));
+    };
+    addAndMakeVisible(hostSyncButton);
 
     bpmSlider.setSliderStyle(juce::Slider::LinearBar);
     bpmSlider.setRange(60.0, 180.0, 1.0);
@@ -89,6 +194,16 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     };
     addAndMakeVisible(bpmSlider);
 
+    swingSlider.setSliderStyle(juce::Slider::LinearBar);
+    swingSlider.setRange(50.0, 75.0, 1.0);
+    swingSlider.setTextValueSuffix("% SWING");
+    swingSlider.setColour(juce::Slider::trackColourId, juce::Colour(0xFF14161A));
+    swingSlider.setColour(juce::Slider::textBoxTextColourId, juce::Colour(0xFFEDEDF0));
+    swingSlider.setWantsKeyboardFocus(false);
+    swingAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.getAPVTS(), "seqSwing", swingSlider);
+    addAndMakeVisible(swingSlider);
+
     clearPatternButton.setButtonText("CLEAR");
     clearPatternButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF30343D));
     clearPatternButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFD4D7DE));
@@ -100,66 +215,39 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     };
     addAndMakeVisible(clearPatternButton);
 
-    defaultPatternButton.setButtonText("2-STEP LOOP");
-    defaultPatternButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF30343D));
-    defaultPatternButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFD4D7DE));
-    defaultPatternButton.setWantsKeyboardFocus(false);
-    defaultPatternButton.onClick = [this]()
+    // 4 Tracks Labels Setup
+    const juce::String trackNames[4] = { "1. KICK", "2. CLAP", "3. C-HAT", "4. PERC" };
+    for (int t = 0; t < 4; ++t)
     {
-        audioProcessor.getSequencer().loadDefaultPattern();
-        updateSequencerButtonColours();
-    };
-    addAndMakeVisible(defaultPatternButton);
+        trackLabels[t].setText(trackNames[t], juce::dontSendNotification);
+        trackLabels[t].setFont(juce::FontOptions(11.0f, juce::Font::bold));
+        trackLabels[t].setColour(juce::Label::textColourId, juce::Colour(0xFFEDEDF0));
+        addAndMakeVisible(trackLabels[t]);
 
-    // Track Labels
-    kickTrackLabel.setText("1. KICK", juce::dontSendNotification);
-    kickTrackLabel.setFont(juce::FontOptions(11.5f, juce::Font::bold));
-    kickTrackLabel.setColour(juce::Label::textColourId, juce::Colour(0xFF14161A));
-    addAndMakeVisible(kickTrackLabel);
-
-    snareTrackLabel.setText("2. CLAP", juce::dontSendNotification);
-    snareTrackLabel.setFont(juce::FontOptions(11.5f, juce::Font::bold));
-    snareTrackLabel.setColour(juce::Label::textColourId, juce::Colour(0xFF14161A));
-    addAndMakeVisible(snareTrackLabel);
-
-    // 16 Step Buttons for Kick & Snare
-    for (int s = 0; s < 16; ++s)
-    {
-        kickStepButtons[s].setButtonText(juce::String(s + 1));
-        kickStepButtons[s].setWantsKeyboardFocus(false);
-        kickStepButtons[s].onClick = [this, s]()
+        for (int s = 0; s < 16; ++s)
         {
-            audioProcessor.getSequencer().toggleStep(0, s);
-            updateSequencerButtonColours();
-        };
-        addAndMakeVisible(kickStepButtons[s]);
-
-        snareStepButtons[s].setButtonText(juce::String(s + 1));
-        snareStepButtons[s].setWantsKeyboardFocus(false);
-        snareStepButtons[s].onClick = [this, s]()
-        {
-            audioProcessor.getSequencer().toggleStep(1, s);
-            updateSequencerButtonColours();
-        };
-        addAndMakeVisible(snareStepButtons[s]);
+            stepButtons[t][s].setButtonText(juce::String(s + 1));
+            stepButtons[t][s].setWantsKeyboardFocus(false);
+            stepButtons[t][s].onClick = [this, t, s]()
+            {
+                audioProcessor.getSequencer().toggleStep(t, s);
+                updateSequencerButtonColours();
+            };
+            addAndMakeVisible(stepButtons[t][s]);
+        }
     }
 
-    // Setup Interactive Performance Pads (Strictly 2 Active Sounds)
-    setupPad(kickPad,  "1. KICK\n[ A ]",  36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
-    setupPad(snarePad, "2. CLAP\n[ S ]",  38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
+    // 8 Performance Trigger Drum Pads Setup
+    setupPad(drumPads[0], "1. KICK\n[ A ]",   36, juce::Colour(0xFFB5A895), juce::Colour(0xFF14161A)); // Taupe
+    setupPad(drumPads[1], "2. CLAP\n[ S ]",   38, juce::Colour(0xFF9D9BFF), juce::Colour(0xFF14161A)); // Periwinkle
+    setupPad(drumPads[2], "3. C-HAT\n[ D ]",  42, juce::Colour(0xFFE9C46A), juce::Colour(0xFF14161A)); // Gold
+    setupPad(drumPads[3], "4. O-HAT\n[ F ]",  46, juce::Colour(0xFFF4A261), juce::Colour(0xFF14161A)); // Coral-Orange
+    setupPad(drumPads[4], "5. VINYL\n[ G ]",  48, juce::Colour(0xFF8D99AE), juce::Colour(0xFF14161A)); // Slate
+    setupPad(drumPads[5], "6. RIM\n[ H ]",    37, juce::Colour(0xFFE76F51), juce::Colour(0xFF14161A)); // Rust Red
+    setupPad(drumPads[6], "7. SUB 808\n[ J ]",39, juce::Colour(0xFF7209B7), juce::Colour(0xFFFFFFFF)); // Purple
+    setupPad(drumPads[7], "8. SHAKER\n[ K ]", 40, juce::Colour(0xFF2A9D8F), juce::Colour(0xFF14161A)); // Teal
 
-    for (size_t i = 0; i < emptyPads.size(); ++i)
-    {
-        emptyPads[i].setButtonText(juce::String(static_cast<int>(i + 3)) + ". [ EMPTY ]");
-        emptyPads[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xFFD6D9DF));
-        emptyPads[i].setColour(juce::TextButton::textColourOffId, juce::Colour(0xFF989CA8));
-        emptyPads[i].setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFD6D9DF));
-        emptyPads[i].setEnabled(false);
-        emptyPads[i].setWantsKeyboardFocus(false);
-        addAndMakeVisible(emptyPads[i]);
-    }
-
-    setActiveTab(SoundTab::SnareClap); // Default focus to Snare/Clap tab per user request
+    setActiveTab(SoundTab::SnareClap);
     updateSequencerButtonColours();
 
     setWantsKeyboardFocus(true);
@@ -167,7 +255,7 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
 
     visualizerBarHeights.fill(0.0f);
 
-    setSize(920, 680);
+    setSize(980, 740);
     startTimerHz(30);
 }
 
@@ -181,7 +269,6 @@ void SubdrumProcessorAudioProcessorEditor::setActiveTab(SoundTab tab)
 {
     activeTab = tab;
 
-    // Tab Button Styling
     auto updateTabBtnStyle = [](juce::TextButton& btn, bool active)
     {
         if (active)
@@ -200,7 +287,6 @@ void SubdrumProcessorAudioProcessorEditor::setActiveTab(SoundTab tab)
     updateTabBtnStyle(snareTabButton,  activeTab == SoundTab::SnareClap);
     updateTabBtnStyle(masterTabButton, activeTab == SoundTab::MasterDSP);
 
-    // Toggle Visibility of Knob Groups
     const bool isKick = (activeTab == SoundTab::Kick);
     kickPitchKnob.slider.setVisible(isKick);   kickPitchKnob.label.setVisible(isKick);
     kickTuneKnob.slider.setVisible(isKick);    kickTuneKnob.label.setVisible(isKick);
@@ -223,6 +309,11 @@ void SubdrumProcessorAudioProcessorEditor::setActiveTab(SoundTab tab)
     echoMixKnob.slider.setVisible(isMaster);     echoMixKnob.label.setVisible(isMaster);
     driveKnob.slider.setVisible(isMaster);       driveKnob.label.setVisible(isMaster);
     cutoffKnob.slider.setVisible(isMaster);      cutoffKnob.label.setVisible(isMaster);
+    bitDepthKnob.slider.setVisible(isMaster);    bitDepthKnob.label.setVisible(isMaster);
+    downsampleKnob.slider.setVisible(isMaster);  downsampleKnob.label.setVisible(isMaster);
+    bitMixKnob.slider.setVisible(isMaster);      bitMixKnob.label.setVisible(isMaster);
+    duckDepthKnob.slider.setVisible(isMaster);   duckDepthKnob.label.setVisible(isMaster);
+    vinylDustKnob.slider.setVisible(isMaster);   vinylDustKnob.label.setVisible(isMaster);
     outputGainKnob.slider.setVisible(isMaster);  outputGainKnob.label.setVisible(isMaster);
 
     resized();
@@ -234,11 +325,6 @@ void SubdrumProcessorAudioProcessorEditor::updateSequencerButtonColours()
     const int curStep = audioProcessor.getSequencer().getCurrentStep();
     const bool isPlaying = audioProcessor.getSequencer().isPlaying();
 
-    // TR-808 Authentic 4-Step Color Palette
-    // Steps 1-4: Red (#E63946)
-    // Steps 5-8: Orange (#F77F00)
-    // Steps 9-12: Yellow (#FCBF49)
-    // Steps 13-16: Off-White (#D8DBE2)
     const juce::Colour tr808ActiveColors[4] = {
         juce::Colour(0xFFE63946), // Red
         juce::Colour(0xFFF77F00), // Orange
@@ -246,36 +332,25 @@ void SubdrumProcessorAudioProcessorEditor::updateSequencerButtonColours()
         juce::Colour(0xFFE2E4E8)  // Off-White
     };
 
-    for (int s = 0; s < 16; ++s)
+    for (int t = 0; t < 4; ++t)
     {
-        const int group = s / 4;
-        const bool isCursor = (isPlaying && curStep == s);
-        const juce::Colour blockCol = tr808ActiveColors[group];
+        for (int s = 0; s < 16; ++s)
+        {
+            const int group = s / 4;
+            const bool isCursor = (isPlaying && curStep == s);
+            const juce::Colour blockCol = tr808ActiveColors[group];
 
-        // Track 0: KICK
-        const bool kickActive = audioProcessor.getSequencer().getStep(0, s);
-        if (kickActive)
-        {
-            kickStepButtons[s].setColour(juce::TextButton::buttonColourId, isCursor ? juce::Colour(0xFFFFFFFF) : blockCol);
-            kickStepButtons[s].setColour(juce::TextButton::textColourOffId, group == 2 ? juce::Colour(0xFF14161A) : (group == 3 ? juce::Colour(0xFF14161A) : juce::Colour(0xFFFFFFFF)));
-        }
-        else
-        {
-            kickStepButtons[s].setColour(juce::TextButton::buttonColourId, isCursor ? juce::Colour(0xFF555964) : juce::Colour(0xFF262930));
-            kickStepButtons[s].setColour(juce::TextButton::textColourOffId, juce::Colour(0xFF7A7E88));
-        }
-
-        // Track 1: SNARE / CLAP
-        const bool snareActive = audioProcessor.getSequencer().getStep(1, s);
-        if (snareActive)
-        {
-            snareStepButtons[s].setColour(juce::TextButton::buttonColourId, isCursor ? juce::Colour(0xFFFFFFFF) : blockCol);
-            snareStepButtons[s].setColour(juce::TextButton::textColourOffId, group == 2 ? juce::Colour(0xFF14161A) : (group == 3 ? juce::Colour(0xFF14161A) : juce::Colour(0xFFFFFFFF)));
-        }
-        else
-        {
-            snareStepButtons[s].setColour(juce::TextButton::buttonColourId, isCursor ? juce::Colour(0xFF555964) : juce::Colour(0xFF262930));
-            snareStepButtons[s].setColour(juce::TextButton::textColourOffId, juce::Colour(0xFF7A7E88));
+            const bool stepActive = audioProcessor.getSequencer().getStep(t, s);
+            if (stepActive)
+            {
+                stepButtons[t][s].setColour(juce::TextButton::buttonColourId, isCursor ? juce::Colour(0xFFFFFFFF) : blockCol);
+                stepButtons[t][s].setColour(juce::TextButton::textColourOffId, (group == 2 || group == 3) ? juce::Colour(0xFF14161A) : juce::Colour(0xFFFFFFFF));
+            }
+            else
+            {
+                stepButtons[t][s].setColour(juce::TextButton::buttonColourId, isCursor ? juce::Colour(0xFF555964) : juce::Colour(0xFF262930));
+                stepButtons[t][s].setColour(juce::TextButton::textColourOffId, juce::Colour(0xFF7A7E88));
+            }
         }
     }
 }
@@ -285,12 +360,13 @@ void SubdrumProcessorAudioProcessorEditor::setupControl(RotaryControl& control, 
 {
     control.slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     control.slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    control.slider.setPopupDisplayEnabled(true, false, this);
     control.slider.setWantsKeyboardFocus(false);
     addAndMakeVisible(control.slider);
 
     control.label.setText(labelText, juce::dontSendNotification);
     control.label.setJustificationType(juce::Justification::centred);
-    control.label.setFont(juce::FontOptions(12.5f, juce::Font::bold));
+    control.label.setFont(juce::FontOptions(11.5f, juce::Font::bold));
     control.label.setColour(juce::Label::textColourId, juce::Colour(0xFF14161A));
     control.label.setWantsKeyboardFocus(false);
     addAndMakeVisible(control.label);
@@ -350,22 +426,24 @@ bool SubdrumProcessorAudioProcessorEditor::keyPressed(const juce::KeyPress& key,
     }
 
     int noteToPlay = -1;
+    int padIndex = -1;
 
-    // Sound 1: KICK (A)
-    if (keyChar == 'a' || keyCode == 'A')
+    switch (keyChar)
     {
-        noteToPlay = 36 + octaveOffset;
-        kickPad.setState(juce::Button::buttonDown);
-    }
-    // Sound 2: SNARE (S)
-    else if (keyChar == 's' || keyCode == 'S')
-    {
-        noteToPlay = 38 + octaveOffset;
-        snarePad.setState(juce::Button::buttonDown);
+        case 'a': noteToPlay = 36 + octaveOffset; padIndex = 0; break;
+        case 's': noteToPlay = 38 + octaveOffset; padIndex = 1; break;
+        case 'd': noteToPlay = 42 + octaveOffset; padIndex = 2; break;
+        case 'f': noteToPlay = 46 + octaveOffset; padIndex = 3; break;
+        case 'g': noteToPlay = 48 + octaveOffset; padIndex = 4; break;
+        case 'h': noteToPlay = 37 + octaveOffset; padIndex = 5; break;
+        case 'j': noteToPlay = 39 + octaveOffset; padIndex = 6; break;
+        case 'k': noteToPlay = 40 + octaveOffset; padIndex = 7; break;
     }
 
     if (noteToPlay != -1)
     {
+        if (padIndex >= 0 && padIndex < 8)
+            drumPads[padIndex].setState(juce::Button::buttonDown);
         triggerDrumVoice(noteToPlay);
         return true;
     }
@@ -377,8 +455,8 @@ bool SubdrumProcessorAudioProcessorEditor::keyStateChanged(bool isKeyDown, juce:
 {
     if (!isKeyDown)
     {
-        kickPad.setState(juce::Button::buttonNormal);
-        snarePad.setState(juce::Button::buttonNormal);
+        for (auto& pad : drumPads)
+            pad.setState(juce::Button::buttonNormal);
         audioProcessor.getKeyboardState().allNotesOff(1);
     }
     return true;
@@ -405,7 +483,6 @@ void SubdrumProcessorAudioProcessorEditor::timerCallback()
     if (presetComboBox.getSelectedId() != audioProcessor.getCurrentProgram() + 1)
         presetComboBox.setSelectedId(audioProcessor.getCurrentProgram() + 1, juce::dontSendNotification);
 
-    // Sequencer Play Button State & Dynamic Steps
     if (audioProcessor.getSequencer().isPlaying())
     {
         playButton.setButtonText("■ STOP");
@@ -441,33 +518,27 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
 
     // 3. Header Branding
     g.setColour(juce::Colour(0xFF101216));
-    g.setFont(juce::FontOptions(25.0f, juce::Font::bold));
-    g.drawText("Subdrum", 24, 12, 160, 26, juce::Justification::left);
+    g.setFont(juce::FontOptions(24.0f, juce::Font::bold));
+    g.drawText("Subdrum", 24, 12, 130, 24, juce::Justification::left);
 
     g.setColour(juce::Colour(0xFF7E828C));
-    g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
-    g.drawText("Underground DSP", 24, 38, 200, 20, juce::Justification::left);
-
-    // Label for Presets
-    g.setColour(juce::Colour(0xFF101216));
-    g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
-    g.drawText("PRESET:", getWidth() - 310, 22, 60, 24, juce::Justification::right);
+    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.drawText("Underground DSP", 24, 34, 150, 18, juce::Justification::left);
 
     // 4. Upper Scope / Dot-Matrix Visualizer Screen Card
-    auto screenBounds = juce::Rectangle<float>(20.0f, 62.0f, static_cast<float>(getWidth() - 40), 96.0f);
+    auto screenBounds = juce::Rectangle<float>(20.0f, 56.0f, static_cast<float>(getWidth() - 40), 86.0f);
     g.setColour(juce::Colour(0xFFEBEDF1));
-    g.fillRoundedRectangle(screenBounds, 10.0f);
+    g.fillRoundedRectangle(screenBounds, 8.0f);
 
     g.setColour(juce::Colour(0xFFD2D5DC));
-    g.drawRoundedRectangle(screenBounds, 10.0f, 1.2f);
+    g.drawRoundedRectangle(screenBounds, 8.0f, 1.2f);
 
     // Active Sound Status Banner
     g.setColour(juce::Colour(0xFF5A5E68));
-    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    g.drawText("SYNTHESIS ENGINES: [ 1. KICK (Active) | 2. SNARE/CLAP (Active) | 3-8. EMPTY ]",
-               screenBounds.getX() + 18, screenBounds.getY() + 6, screenBounds.getWidth() - 36, 16, juce::Justification::left);
+    g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+    g.drawText("SYNTHESIS ENGINES: [ 8 VOICES ACTIVE | 12-BIT LO-FI CRUNCH | DUB ECHO & DUCKING ]",
+               screenBounds.getX() + 16, screenBounds.getY() + 4, screenBounds.getWidth() - 32, 14, juce::Justification::left);
 
-    // Dashed Centerline
     const float centerY = screenBounds.getCentreY() + 6.0f;
     g.setColour(juce::Colour(0xFF787C86));
     for (float x = screenBounds.getX() + 15.0f; x < screenBounds.getRight() - 15.0f; x += 10.0f)
@@ -477,9 +548,9 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
 
     // Render Waveform / Envelope as Bold Dot-Matrix Columns
     const float startX = screenBounds.getX() + 32.0f;
-    const float colGap = 13.0f;
-    const float dotSize = 4.0f;
-    const float dotStepY = 5.5f;
+    const float colGap = 13.5f;
+    const float dotSize = 3.8f;
+    const float dotStepY = 5.2f;
 
     for (int col = 0; col < numVisualizerCols; ++col)
     {
@@ -491,89 +562,83 @@ void SubdrumProcessorAudioProcessorEditor::paint(juce::Graphics& g)
         const float liveHeightNorm = juce::jlimit(0.05f, 1.0f, idleFactor * 0.35f + visualizerBarHeights[col] * 0.85f);
         const int numDotsHalf = static_cast<int>(liveHeightNorm * 6.0f) + 1;
 
-        // Active Upper/Lower Bold Black Dots
         g.setColour(juce::Colour(0xFF121417));
         for (int d = 0; d < numDotsHalf; ++d)
         {
             const float yUp = centerY - (d * dotStepY) - 3.0f;
             const float yDown = centerY + (d * dotStepY) + 3.0f;
 
-            if (yUp >= screenBounds.getY() + 16.0f)
+            if (yUp >= screenBounds.getY() + 14.0f)
                 g.fillEllipse(colX, yUp - dotSize * 0.5f, dotSize, dotSize);
 
-            if (yDown <= screenBounds.getBottom() - 6.0f)
+            if (yDown <= screenBounds.getBottom() - 5.0f)
                 g.fillEllipse(colX, yDown - dotSize * 0.5f, dotSize, dotSize);
-        }
-
-        // Fading Ghost Dots beneath the decay line
-        g.setColour(juce::Colour(0xFFB0B4BD));
-        for (int d = numDotsHalf; d < numDotsHalf + 2; ++d)
-        {
-            const float yGhost = centerY + (d * dotStepY) + 3.0f;
-            if (yGhost <= screenBounds.getBottom() - 6.0f)
-                g.fillEllipse(colX, yGhost - (dotSize - 1.0f) * 0.5f, dotSize - 1.0f, dotSize - 1.0f);
         }
     }
 
     // 5. Center Sound Voice & Parameter Bank Card
-    auto voiceCard = juce::Rectangle<float>(20.0f, 168.0f, static_cast<float>(getWidth() - 40), 185.0f);
+    auto voiceCard = juce::Rectangle<float>(20.0f, 148.0f, static_cast<float>(getWidth() - 40), 180.0f);
     g.setColour(juce::Colour(0xFFEBEDF1));
-    g.fillRoundedRectangle(voiceCard, 10.0f);
+    g.fillRoundedRectangle(voiceCard, 8.0f);
     g.setColour(juce::Colour(0xFFD2D5DC));
-    g.drawRoundedRectangle(voiceCard, 10.0f, 1.2f);
+    g.drawRoundedRectangle(voiceCard, 8.0f, 1.2f);
 
     // 6. TR-808 Style Hardware Sequencer Container Card
-    auto seqCard = juce::Rectangle<float>(20.0f, 362.0f, static_cast<float>(getWidth() - 40), 195.0f);
-    g.setColour(juce::Colour(0xFF1E2128)); // Dark hardware chassis styling matching TR-808 step bay
-    g.fillRoundedRectangle(seqCard, 10.0f);
+    auto seqCard = juce::Rectangle<float>(20.0f, 336.0f, static_cast<float>(getWidth() - 40), 255.0f);
+    g.setColour(juce::Colour(0xFF1E2128));
+    g.fillRoundedRectangle(seqCard, 8.0f);
     g.setColour(juce::Colour(0xFF343842));
-    g.drawRoundedRectangle(seqCard, 10.0f, 1.5f);
+    g.drawRoundedRectangle(seqCard, 8.0f, 1.5f);
 
     g.setColour(juce::Colour(0xFFE2E4E8));
-    g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
-    g.drawText("RHYTHM PROGRAMMER // 16-STEP TR-808 GRID", seqCard.getX() + 16, seqCard.getY() + 10, 360, 16, juce::Justification::left);
+    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    g.drawText("RHYTHM PROGRAMMER // 4-TRACK TR-808 SEQUENCER + SWING + HOST SYNC", seqCard.getX() + 16, seqCard.getY() + 8, 550, 16, juce::Justification::left);
 
     // 7. Bottom Performance Trigger Pads Card
-    auto bottomSection = juce::Rectangle<float>(20.0f, static_cast<float>(getHeight() - 110),
-                                                static_cast<float>(getWidth() - 40), 95.0f);
+    auto bottomSection = juce::Rectangle<float>(20.0f, static_cast<float>(getHeight() - 138),
+                                                static_cast<float>(getWidth() - 40), 126.0f);
     g.setColour(juce::Colour(0xFFEBEDF1));
-    g.fillRoundedRectangle(bottomSection, 10.0f);
+    g.fillRoundedRectangle(bottomSection, 8.0f);
     g.setColour(juce::Colour(0xFFD2D5DC));
-    g.drawRoundedRectangle(bottomSection, 10.0f, 1.2f);
+    g.drawRoundedRectangle(bottomSection, 8.0f, 1.2f);
 
     g.setColour(juce::Colour(0xFF5A5E68));
     g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
-    g.drawText("VOICE TRIGGER PADS (QWERTY [A] / [S])", bottomSection.getX() + 14, bottomSection.getY() + 6, 280, 14, juce::Justification::left);
+    g.drawText("VOICE TRIGGER PADS (QWERTY [A] [S] [D] [F] [G] [H] [J] [K])", bottomSection.getX() + 14, bottomSection.getY() + 6, 450, 14, juce::Justification::left);
 }
 
 void SubdrumProcessorAudioProcessorEditor::resized()
 {
-    // Preset Selector in header
-    presetComboBox.setBounds(getWidth() - 245, 18, 225, 28);
+    // Header Row: Logo, Presets combo, Rhythms combo, Save, Import, Export
+    const int topY = 14;
+    presetComboBox.setBounds(200, topY, 180, 28);
+    rhythmComboBox.setBounds(390, topY, 195, 28);
+    saveButton.setBounds(600, topY, 70, 28);
+    importButton.setBounds(680, topY, 80, 28);
+    exportButton.setBounds(770, topY, 80, 28);
 
     // Sound Tabs Navigation Row
     const int tabX = 32;
-    const int tabY = 178;
+    const int tabY = 156;
     const int tabW = 140;
-    const int tabH = 30;
+    const int tabH = 26;
 
     kickTabButton.setBounds(tabX, tabY, tabW, tabH);
-    snareTabButton.setBounds(tabX + tabW + 8, tabY, tabW + 20, tabH);
-    masterTabButton.setBounds(tabX + (tabW * 2) + 36, tabY, tabW + 10, tabH);
+    snareTabButton.setBounds(tabX + tabW + 8, tabY, tabW + 15, tabH);
+    masterTabButton.setBounds(tabX + (tabW * 2) + 30, tabY, tabW + 10, tabH);
 
-    // Helper to position rotary dials
     auto placeKnob = [](RotaryControl& ctrl, juce::Rectangle<int> box)
     {
-        auto labelBox = box.removeFromBottom(22);
+        auto labelBox = box.removeFromBottom(20);
         ctrl.label.setBounds(labelBox);
-        ctrl.slider.setBounds(box.reduced(6));
+        ctrl.slider.setBounds(box.reduced(4));
     };
 
-    const int knobsAreaTop = 216;
-    const int knobsAreaH = 130;
+    const int knobsAreaTop = 186;
+    const int knobsAreaH = 135;
     const int contentW = getWidth() - 60;
 
-    // KICK TAB (6 Knobs: Pitch Drop, Tune, Sweep, Decay, Punch Click, Drive)
+    // TAB 1: KICK (6 Knobs)
     if (activeTab == SoundTab::Kick)
     {
         const int numKnobs = 6;
@@ -585,7 +650,7 @@ void SubdrumProcessorAudioProcessorEditor::resized()
         placeKnob(kickPunchKnob, juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
         placeKnob(kickDriveKnob, juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
-    // ACOUSTIC CLAP TAB (6 Knobs: Pitch, Decay, Acoustic Wood, Slap Smack, Noise Filter, Room Tail)
+    // TAB 2: ACOUSTIC CLAP (6 Knobs)
     else if (activeTab == SoundTab::SnareClap)
     {
         const int numKnobs = 6;
@@ -597,62 +662,71 @@ void SubdrumProcessorAudioProcessorEditor::resized()
         placeKnob(snareToneKnob,  juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
         placeKnob(snareTailKnob,  juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
-    // MASTER DSP, DUB ECHO & ROOM AMBIENCE TAB (6 Knobs: Room Space, Room Size, Dub Echo, Tape Drive, Master Cutoff, Master Gain)
+    // TAB 3: MASTER DSP, BITS, REVERB & DUCKING (11 Knobs in 2 Rows)
     else if (activeTab == SoundTab::MasterDSP)
     {
-        const int numKnobs = 6;
-        const int knobW = contentW / numKnobs;
-        placeKnob(roomMixKnob,     juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(roomSizeKnob,    juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(echoMixKnob,     juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(driveKnob,       juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(cutoffKnob,      juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(outputGainKnob,  juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        const int rowH = 68;
+        const int topRowY = knobsAreaTop;
+        const int botRowY = knobsAreaTop + rowH + 2;
+
+        // Row 1: Space & Color (6 knobs)
+        const int knobW1 = contentW / 6;
+        placeKnob(roomMixKnob,    juce::Rectangle<int>(30 + 0 * knobW1, topRowY, knobW1, rowH));
+        placeKnob(roomSizeKnob,   juce::Rectangle<int>(30 + 1 * knobW1, topRowY, knobW1, rowH));
+        placeKnob(echoMixKnob,    juce::Rectangle<int>(30 + 2 * knobW1, topRowY, knobW1, rowH));
+        placeKnob(driveKnob,      juce::Rectangle<int>(30 + 3 * knobW1, topRowY, knobW1, rowH));
+        placeKnob(cutoffKnob,     juce::Rectangle<int>(30 + 4 * knobW1, topRowY, knobW1, rowH));
+        placeKnob(outputGainKnob, juce::Rectangle<int>(30 + 5 * knobW1, topRowY, knobW1, rowH));
+
+        // Row 2: Lo-Fi Bits, Decimator, Ducking & Vinyl (5 knobs)
+        const int knobW2 = contentW / 5;
+        placeKnob(bitDepthKnob,   juce::Rectangle<int>(30 + 0 * knobW2, botRowY, knobW2, rowH));
+        placeKnob(downsampleKnob, juce::Rectangle<int>(30 + 1 * knobW2, botRowY, knobW2, rowH));
+        placeKnob(bitMixKnob,     juce::Rectangle<int>(30 + 2 * knobW2, botRowY, knobW2, rowH));
+        placeKnob(duckDepthKnob,  juce::Rectangle<int>(30 + 3 * knobW2, botRowY, knobW2, rowH));
+        placeKnob(vinylDustKnob,  juce::Rectangle<int>(30 + 4 * knobW2, botRowY, knobW2, rowH));
     }
 
     // TR-808 Sequencer Section Layout
     const int seqX = 36;
-    const int seqY = 396;
+    const int seqY = 362;
 
     // Transport Row
-    playButton.setBounds(seqX, seqY, 100, 30);
-    bpmSlider.setBounds(seqX + 112, seqY, 120, 30);
-    defaultPatternButton.setBounds(seqX + 242, seqY, 130, 30);
-    clearPatternButton.setBounds(seqX + 382, seqY, 75, 30);
+    playButton.setBounds(seqX, seqY, 80, 26);
+    hostSyncButton.setBounds(seqX + 88, seqY, 115, 26);
+    bpmSlider.setBounds(seqX + 211, seqY, 100, 26);
+    swingSlider.setBounds(seqX + 319, seqY, 120, 26);
+    clearPatternButton.setBounds(seqX + 447, seqY, 70, 26);
 
-    // TR-808 16 Step Buttons Layout
-    const int gridStartX = seqX + 85;
+    // 4 Tracks x 16 Steps Layout
+    const int gridStartX = seqX + 75;
     const int gridW = getWidth() - gridStartX - 40;
-    const int stepButtonW = (gridW - (15 * 5)) / 16;
-    const int stepButtonH = 38;
+    const int stepButtonW = (gridW - (15 * 4)) / 16;
+    const int stepButtonH = 34;
+    const int rowSpacing = 38;
 
-    kickTrackLabel.setBounds(seqX, seqY + 44, 75, stepButtonH);
-    snareTrackLabel.setBounds(seqX, seqY + 90, 75, stepButtonH);
-
-    kickTrackLabel.setColour(juce::Label::textColourId, juce::Colour(0xFFEDEDF0));
-    snareTrackLabel.setColour(juce::Label::textColourId, juce::Colour(0xFFEDEDF0));
-
-    for (int s = 0; s < 16; ++s)
+    for (int t = 0; t < 4; ++t)
     {
-        const int bx = gridStartX + s * (stepButtonW + 5);
-        kickStepButtons[s].setBounds(bx, seqY + 44, stepButtonW, stepButtonH);
-        snareStepButtons[s].setBounds(bx, seqY + 90, stepButtonW, stepButtonH);
+        const int ry = seqY + 36 + (t * rowSpacing);
+        trackLabels[t].setBounds(seqX, ry, 70, stepButtonH);
+
+        for (int s = 0; s < 16; ++s)
+        {
+            const int bx = gridStartX + s * (stepButtonW + 4);
+            stepButtons[t][s].setBounds(bx, ry, stepButtonW, stepButtonH);
+        }
     }
 
-    // Bottom Trigger Pads (8 Pads, strictly 2 active)
-    auto bottomArea = juce::Rectangle<int>(32, getHeight() - 84, getWidth() - 64, 60);
+    // Bottom Performance Trigger Pads (8 Pads)
+    auto bottomArea = juce::Rectangle<int>(32, getHeight() - 110, getWidth() - 64, 88);
     const int numPads = 8;
-    const int padW = (bottomArea.getWidth() - ((numPads - 1) * 8)) / numPads;
+    const int padGap = 6;
+    const int padW = (bottomArea.getWidth() - ((numPads - 1) * padGap)) / numPads;
 
-    kickPad.setBounds(bottomArea.removeFromLeft(padW));
-    bottomArea.removeFromLeft(8);
-    snarePad.setBounds(bottomArea.removeFromLeft(padW));
-    bottomArea.removeFromLeft(8);
-
-    for (size_t i = 0; i < emptyPads.size(); ++i)
+    for (int i = 0; i < numPads; ++i)
     {
-        emptyPads[i].setBounds(bottomArea.removeFromLeft(padW));
-        if (i < emptyPads.size() - 1)
-            bottomArea.removeFromLeft(8);
+        drumPads[i].setBounds(bottomArea.removeFromLeft(padW));
+        if (i < numPads - 1)
+            bottomArea.removeFromLeft(padGap);
     }
 }

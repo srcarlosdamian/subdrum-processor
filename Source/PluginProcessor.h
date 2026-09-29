@@ -14,6 +14,7 @@
 #include "DSP/VinylNoise.h"
 #include "DSP/TapeEcho.h"
 #include "DSP/RoomAmbience.h"
+#include "DSP/BitCrusher.h"
 
 class SubdrumProcessorAudioProcessor : public juce::AudioProcessor
 {
@@ -53,6 +54,13 @@ public:
     void loadPreset(int index);
     const std::vector<Preset>& getPresets() const noexcept { return factoryPresets; }
 
+    // Preset & Rhythm Pattern Import / Export (JSON format)
+    juce::String exportPresetAsJson();
+    bool importPresetFromJson(const juce::String& jsonText);
+    bool exportPresetToFile(const juce::File& targetFile);
+    bool importPresetFromFile(const juce::File& sourceFile);
+    void loadRhythmPreset(int index);
+
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
@@ -60,7 +68,7 @@ public:
     juce::MidiKeyboardState& getKeyboardState() noexcept { return keyboardState; }
     float getGainReduction() const noexcept { return compressor.getGainReductionDb(); }
 
-    // Step Sequencer (TR-808 style Pattern Player)
+    // Step Sequencer (16-Step Pattern Player with Swing & Host Sync)
     underground::dsp::StepSequencer& getSequencer() noexcept { return stepSequencer; }
 
     // Sample Engine (Drag & Drop .WAV / Audio Files)
@@ -98,6 +106,7 @@ private:
     underground::dsp::StepSequencer stepSequencer;
     underground::dsp::SamplePlayer samplePlayer;
     underground::dsp::DrumSynth drumSynth;
+    underground::dsp::BitCrusher bitCrusher;
     underground::dsp::TapeSaturation tapeSaturation;
     underground::dsp::SamplerFilter samplerFilter;
     underground::dsp::VCACompressor compressor;
@@ -141,6 +150,13 @@ private:
     std::atomic<float>* vinylNoiseParam { nullptr };
     std::atomic<float>* vinylDustParam { nullptr };
     std::atomic<float>* outputGainParam { nullptr };
+
+    // Lo-Fi Bits, Downsampler, Ducking & Swing Pointers
+    std::atomic<float>* bitDepthParam { nullptr };
+    std::atomic<float>* downsampleParam { nullptr };
+    std::atomic<float>* bitMixParam { nullptr };
+    std::atomic<float>* duckDepthParam { nullptr };
+    std::atomic<float>* seqSwingParam { nullptr };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SubdrumProcessorAudioProcessor)
 };

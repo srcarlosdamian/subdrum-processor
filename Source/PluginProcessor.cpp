@@ -45,6 +45,13 @@ SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     vinylDustParam     = apvts.getRawParameterValue("vinylDust");
     outputGainParam    = apvts.getRawParameterValue("outputGain");
 
+    // Lo-Fi Bits, Downsampler, Ducking & Swing Parameters
+    bitDepthParam      = apvts.getRawParameterValue("bitDepth");
+    downsampleParam    = apvts.getRawParameterValue("downsample");
+    bitMixParam        = apvts.getRawParameterValue("bitMix");
+    duckDepthParam     = apvts.getRawParameterValue("duckDepth");
+    seqSwingParam      = apvts.getRawParameterValue("seqSwing");
+
     for (auto& item : visualizerFifo)
         item.store(0.0f, std::memory_order_relaxed);
 
@@ -58,41 +65,51 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
 {
     factoryPresets = {
         {
-            "uk_2step_default",
+            "01 // 2-Step Solid Clap",
             {
-                { "kickPitch", 0.0f },
-                { "kickTune", 68.0f },
-                { "kickSweep", 77.0f },
-                { "kickDecay", 72.0f },
-                { "kickPunch", 75.0f },
-                { "kickDrive", 50.0f },
-
-                { "snarePitch", 0.0f },
-                { "snareDecay", 180.0f },
-                { "snareWood", 85.0f },
-                { "snareSlap", 90.0f },
-                { "snareTone", 7500.0f },
-                { "snareTail", 40.0f },
-
-                { "roomMix", 18.0f },
-                { "roomSize", 45.0f },
-                { "echoTime", 260.0f },
-                { "echoFeedback", 40.0f },
-                { "echoMix", 18.0f },
-
-                { "drive", 12.0f },
-                { "tapeMix", 100.0f },
-                { "cutoff", 18000.0f },
-                { "resonance", 1.0f },
-                { "compThreshold", -14.0f },
-                { "compRatio", 4.0f },
-                { "compAttack", 1.5f },
-                { "compRelease", 35.0f },
-                { "compMakeup", 2.0f },
-                { "compMix", 100.0f },
-                { "vinylNoise", 0.0f },
-                { "vinylDust", 0.0f },
-                { "outputGain", 0.0f }
+                { "kickPitch", 0.0f }, { "kickTune", 68.0f }, { "kickSweep", 77.0f }, { "kickDecay", 72.0f }, { "kickPunch", 75.0f }, { "kickDrive", 50.0f },
+                { "snarePitch", 0.0f }, { "snareDecay", 180.0f }, { "snareWood", 85.0f }, { "snareSlap", 90.0f }, { "snareTone", 7500.0f }, { "snareTail", 40.0f },
+                { "roomMix", 18.0f }, { "roomSize", 45.0f }, { "echoTime", 260.0f }, { "echoFeedback", 40.0f }, { "echoMix", 18.0f },
+                { "drive", 12.0f }, { "tapeMix", 100.0f }, { "cutoff", 18000.0f }, { "resonance", 1.0f },
+                { "compThreshold", -14.0f }, { "compRatio", 4.0f }, { "compAttack", 1.5f }, { "compRelease", 35.0f }, { "compMakeup", 2.0f }, { "compMix", 100.0f },
+                { "vinylNoise", 0.0f }, { "vinylDust", 0.0f }, { "outputGain", 0.0f },
+                { "bitDepth", 16.0f }, { "downsample", 1.0f }, { "bitMix", 0.0f }, { "duckDepth", 40.0f }, { "seqSwing", 58.0f }
+            }
+        },
+        {
+            "02 // 90s Dusty Vinyl Garage",
+            {
+                { "kickPitch", -2.0f }, { "kickTune", 58.0f }, { "kickSweep", 90.0f }, { "kickDecay", 95.0f }, { "kickPunch", 85.0f }, { "kickDrive", 65.0f },
+                { "snarePitch", -1.0f }, { "snareDecay", 160.0f }, { "snareWood", 90.0f }, { "snareSlap", 80.0f }, { "snareTone", 5800.0f }, { "snareTail", 50.0f },
+                { "roomMix", 24.0f }, { "roomSize", 55.0f }, { "echoTime", 320.0f }, { "echoFeedback", 45.0f }, { "echoMix", 22.0f },
+                { "drive", 16.0f }, { "tapeMix", 100.0f }, { "cutoff", 14500.0f }, { "resonance", 1.2f },
+                { "compThreshold", -18.0f }, { "compRatio", 5.0f }, { "compAttack", 2.0f }, { "compRelease", 45.0f }, { "compMakeup", 3.0f }, { "compMix", 100.0f },
+                { "vinylNoise", 35.0f }, { "vinylDust", 40.0f }, { "outputGain", 0.0f },
+                { "bitDepth", 16.0f }, { "downsample", 1.0f }, { "bitMix", 0.0f }, { "duckDepth", 50.0f }, { "seqSwing", 62.0f }
+            }
+        },
+        {
+            "03 // Dark Dubstep Weight",
+            {
+                { "kickPitch", -4.0f }, { "kickTune", 48.0f }, { "kickSweep", 120.0f }, { "kickDecay", 110.0f }, { "kickPunch", 90.0f }, { "kickDrive", 80.0f },
+                { "snarePitch", 0.0f }, { "snareDecay", 220.0f }, { "snareWood", 95.0f }, { "snareSlap", 95.0f }, { "snareTone", 6200.0f }, { "snareTail", 65.0f },
+                { "roomMix", 30.0f }, { "roomSize", 75.0f }, { "echoTime", 375.0f }, { "echoFeedback", 55.0f }, { "echoMix", 28.0f },
+                { "drive", 20.0f }, { "tapeMix", 100.0f }, { "cutoff", 16000.0f }, { "resonance", 1.4f },
+                { "compThreshold", -20.0f }, { "compRatio", 6.0f }, { "compAttack", 1.0f }, { "compRelease", 60.0f }, { "compMakeup", 4.0f }, { "compMix", 100.0f },
+                { "vinylNoise", 15.0f }, { "vinylDust", 20.0f }, { "outputGain", 0.0f },
+                { "bitDepth", 16.0f }, { "downsample", 1.0f }, { "bitMix", 0.0f }, { "duckDepth", 60.0f }, { "seqSwing", 54.0f }
+            }
+        },
+        {
+            "04 // Lo-Fi 12-Bit Grime Crunch",
+            {
+                { "kickPitch", 1.0f }, { "kickTune", 62.0f }, { "kickSweep", 85.0f }, { "kickDecay", 65.0f }, { "kickPunch", 80.0f }, { "kickDrive", 70.0f },
+                { "snarePitch", 2.0f }, { "snareDecay", 150.0f }, { "snareWood", 80.0f }, { "snareSlap", 85.0f }, { "snareTone", 5200.0f }, { "snareTail", 30.0f },
+                { "roomMix", 15.0f }, { "roomSize", 40.0f }, { "echoTime", 220.0f }, { "echoFeedback", 35.0f }, { "echoMix", 15.0f },
+                { "drive", 18.0f }, { "tapeMix", 100.0f }, { "cutoff", 12000.0f }, { "resonance", 1.6f },
+                { "compThreshold", -16.0f }, { "compRatio", 4.5f }, { "compAttack", 1.5f }, { "compRelease", 30.0f }, { "compMakeup", 2.5f }, { "compMix", 100.0f },
+                { "vinylNoise", 25.0f }, { "vinylDust", 30.0f }, { "outputGain", 0.0f },
+                { "bitDepth", 12.0f }, { "downsample", 2.0f }, { "bitMix", 100.0f }, { "duckDepth", 45.0f }, { "seqSwing", 60.0f }
             }
         }
     };
@@ -139,6 +156,114 @@ const juce::String SubdrumProcessorAudioProcessor::getProgramName(int index)
 }
 
 void SubdrumProcessorAudioProcessor::changeProgramName(int, const juce::String&) {}
+
+void SubdrumProcessorAudioProcessor::loadRhythmPreset(int index)
+{
+    stepSequencer.loadRhythmPreset(static_cast<underground::dsp::StepSequencer::RhythmPreset>(
+        juce::jlimit(0, 6, index)));
+}
+
+juce::String SubdrumProcessorAudioProcessor::exportPresetAsJson()
+{
+    auto* obj = new juce::DynamicObject();
+    obj->setProperty("name", getProgramName(currentProgram));
+    obj->setProperty("format", "SubdrumProcessorPreset");
+    obj->setProperty("version", 1);
+
+    auto* paramObj = new juce::DynamicObject();
+    for (auto* param : getParameters())
+    {
+        if (auto* p = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
+        {
+            paramObj->setProperty(p->paramID, p->getValue());
+        }
+    }
+    obj->setProperty("parameters", juce::var(paramObj));
+
+    auto* seqObj = new juce::DynamicObject();
+    seqObj->setProperty("bpm", stepSequencer.getBpm());
+    seqObj->setProperty("swing", stepSequencer.getSwing());
+
+    juce::Array<juce::var> tracksArray;
+    for (int t = 0; t < underground::dsp::StepSequencer::numTracks; ++t)
+    {
+        juce::Array<juce::var> stepsArray;
+        for (int s = 0; s < underground::dsp::StepSequencer::numSteps; ++s)
+            stepsArray.add(stepSequencer.getStep(t, s) ? 1 : 0);
+        tracksArray.add(stepsArray);
+    }
+    seqObj->setProperty("tracks", tracksArray);
+    obj->setProperty("sequencer", juce::var(seqObj));
+
+    return juce::JSON::toString(juce::var(obj), true);
+}
+
+bool SubdrumProcessorAudioProcessor::importPresetFromJson(const juce::String& jsonText)
+{
+    juce::var parsedJson;
+    if (juce::JSON::parse(jsonText, parsedJson).wasOk() && parsedJson.isObject())
+    {
+        if (auto* obj = parsedJson.getDynamicObject())
+        {
+            if (obj->hasProperty("parameters"))
+            {
+                if (auto* paramObj = obj->getProperty("parameters").getDynamicObject())
+                {
+                    for (const auto& prop : paramObj->getProperties())
+                    {
+                        if (auto* p = apvts.getParameter(prop.name.toString()))
+                            p->setValueNotifyingHost(static_cast<float>(prop.value));
+                    }
+                }
+            }
+
+            if (obj->hasProperty("sequencer"))
+            {
+                if (auto* seqObj = obj->getProperty("sequencer").getDynamicObject())
+                {
+                    if (seqObj->hasProperty("bpm"))
+                        stepSequencer.setBpm(static_cast<double>(seqObj->getProperty("bpm")));
+                    if (seqObj->hasProperty("swing"))
+                        stepSequencer.setSwing(static_cast<float>(seqObj->getProperty("swing")));
+                    if (seqObj->hasProperty("tracks"))
+                    {
+                        if (auto* trkArr = seqObj->getProperty("tracks").getArray())
+                        {
+                            const int numT = std::min(static_cast<int>(trkArr->size()), underground::dsp::StepSequencer::numTracks);
+                            for (int t = 0; t < numT; ++t)
+                            {
+                                if (auto* stpArr = (*trkArr)[t].getArray())
+                                {
+                                    const int numS = std::min(static_cast<int>(stpArr->size()), underground::dsp::StepSequencer::numSteps);
+                                    for (int s = 0; s < numS; ++s)
+                                        stepSequencer.setStep(t, s, static_cast<int>((*stpArr)[s]) != 0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SubdrumProcessorAudioProcessor::exportPresetToFile(const juce::File& targetFile)
+{
+    const juce::String json = exportPresetAsJson();
+    return targetFile.replaceWithText(json);
+}
+
+bool SubdrumProcessorAudioProcessor::importPresetFromFile(const juce::File& sourceFile)
+{
+    if (sourceFile.existsAsFile())
+    {
+        const juce::String json = sourceFile.loadFileAsString();
+        return importPresetFromJson(json);
+    }
+    return false;
+}
 
 juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcessor::createParameterLayout()
 {
@@ -297,6 +422,33 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
         juce::NormalisableRange<float>(-24.0f, 12.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
+    // --- 4. LO-FI BITS & DOWNSAMPLER PARAMETERS ---
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bitDepth", 1 }, "Bit Depth",
+        juce::NormalisableRange<float>(2.0f, 16.0f, 0.1f), 16.0f,
+        juce::AudioParameterFloatAttributes().withLabel("bits")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "downsample", 1 }, "Downsample",
+        juce::NormalisableRange<float>(1.0f, 16.0f, 0.1f), 1.0f,
+        juce::AudioParameterFloatAttributes().withLabel("x")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bitMix", 1 }, "Lo-Fi Bits Mix",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // --- 5. SIDECHAIN DUCKING & SEQUENCER SWING ---
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "duckDepth", 1 }, "Sidechain Duck",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 40.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "seqSwing", 1 }, "Sequencer Swing",
+        juce::NormalisableRange<float>(50.0f, 75.0f, 0.5f), 58.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
     return { params.begin(), params.end() };
 }
 
@@ -354,6 +506,7 @@ void SubdrumProcessorAudioProcessor::prepareToPlay(double sampleRate, int sample
     stepSequencer.prepare(sampleRate);
     samplePlayer.prepare(spec);
     drumSynth.prepare(spec);
+    bitCrusher.prepare(spec);
     tapeSaturation.prepare(spec);
     samplerFilter.prepare(spec);
     compressor.prepare(spec);
@@ -370,6 +523,7 @@ void SubdrumProcessorAudioProcessor::releaseResources()
     stepSequencer.reset();
     samplePlayer.reset();
     drumSynth.reset();
+    bitCrusher.reset();
     tapeSaturation.reset();
     samplerFilter.reset();
     compressor.reset();
@@ -403,22 +557,29 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     if (numSamples == 0)
         return;
 
-    // 1. Process TR-808 Style Step Sequencer Clock
+    // 1. Process TR-808 Style Step Sequencer Clock with Host DAW Sync
     double hostBpm = 0.0;
+    bool hostPlaying = false;
+    double hostPpq = -1.0;
     if (auto* playHead = getPlayHead())
     {
         if (auto posOpt = playHead->getPosition())
         {
             if (posOpt->getBpm().hasValue())
                 hostBpm = *posOpt->getBpm();
+            if (posOpt->getIsPlaying())
+                hostPlaying = true;
+            if (posOpt->getPpqPosition().hasValue())
+                hostPpq = *posOpt->getPpqPosition();
         }
     }
-    stepSequencer.process(midiMessages, numSamples, hostBpm);
+    stepSequencer.setSwing(seqSwingParam->load(std::memory_order_relaxed));
+    stepSequencer.process(midiMessages, numSamples, hostBpm, hostPlaying, hostPpq);
 
     // 2. Process Virtual/Computer Keyboard MIDI messages
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
-    // 3. Update Drum Synth Parameters for Kick & Snare
+    // 3. Update Drum Synth Parameters
     drumSynth.setKickPitchSemi(kickPitchParam->load(std::memory_order_relaxed));
     drumSynth.setKickTune(kickTuneParam->load(std::memory_order_relaxed));
     drumSynth.setKickPitchSweep(kickSweepParam->load(std::memory_order_relaxed));
@@ -436,7 +597,13 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     // 4. Synthesize Internal Drum Voices directly
     drumSynth.process(buffer, midiMessages);
 
-    // 5. Update DSP parameters atomically and lock-free
+    // 5. Lo-Fi BitCrusher (SP-1200 / Akai 12-bit / 8-bit grit)
+    bitCrusher.setBitDepth(bitDepthParam->load(std::memory_order_relaxed));
+    bitCrusher.setDownsample(downsampleParam->load(std::memory_order_relaxed));
+    bitCrusher.setMix(bitMixParam->load(std::memory_order_relaxed) * 0.01f);
+    bitCrusher.process(buffer);
+
+    // 6. Update DSP parameters atomically and lock-free
     tapeSaturation.setDrive(driveParam->load(std::memory_order_relaxed));
     tapeSaturation.setMix(tapeMixParam->load(std::memory_order_relaxed) * 0.01f);
 
@@ -462,7 +629,7 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
 
     outputGain.setGainDecibels(outputGainParam->load(std::memory_order_relaxed));
 
-    // 6. Sequential DSP Pipeline
+    // 7. Sequential DSP Pipeline
     juce::dsp::AudioBlock<float> audioBlock(buffer);
     juce::dsp::ProcessContextReplacing<float> context(audioBlock);
 
@@ -472,9 +639,26 @@ void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     tapeEcho.process(context);
     roomAmbience.process(context);
     vinylNoise.process(context);
+
+    // 8. Internal Sidechain Ducking (Kick attenuates Reverb / Room / Echo space)
+    const float duckDepth = duckDepthParam->load(std::memory_order_relaxed) * 0.01f;
+    if (duckDepth > 0.01f)
+    {
+        const float kickDuck = drumSynth.getKickDuckLevel() * duckDepth;
+        const float duckMultiplier = 1.0f - (kickDuck * 0.50f);
+        for (int ch = 0; ch < totalNumOutputChannels; ++ch)
+        {
+            auto* channelData = buffer.getWritePointer(ch);
+            for (int s = 0; s < numSamples; ++s)
+            {
+                channelData[s] *= duckMultiplier;
+            }
+        }
+    }
+
     outputGain.process(context);
 
-    // 5. Calculate peak amplitude envelope for visualizer
+    // 9. Calculate peak amplitude envelope for visualizer
     float peakValue = 0.0f;
     for (int ch = 0; ch < totalNumOutputChannels; ++ch)
     {
