@@ -48,11 +48,15 @@ public:
         // Clap Filters
         updateClapFilters();
 
-        // Hi-Hat Filters
-        hatHighPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 7200.0f, 1.0f);
+        // Hi-Hat Filters: 380Hz highpass + 7800Hz bandpass + 480Hz body + 9200Hz sizzle
+        hatHighPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 380.0f, 0.707f);
         hatHighPass.reset();
-        hatBandPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 9500.0f, 2.0f);
+        hatBandPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 7800.0f, 1.6f);
         hatBandPass.reset();
+        hatBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 480.0f, 2.0f);
+        hatBodyFilter.reset();
+        hatSizzleFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 9200.0f, 0.707f);
+        hatSizzleFilter.reset();
 
         // Rimshot Filters
         rimBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 480.0f, 4.0f);
@@ -95,6 +99,8 @@ public:
 
         // Hats
         closedHatEnv = 0.0f;
+        closedHatClickEnv = 0.0f;
+        closedHatSizzleEnv = 0.0f;
         openHatEnv = 0.0f;
         hatPhases.fill(0.0f);
 
@@ -124,6 +130,8 @@ public:
         clapToneLowPass.reset();
         hatHighPass.reset();
         hatBandPass.reset();
+        hatBodyFilter.reset();
+        hatSizzleFilter.reset();
         rimBodyFilter.reset();
         rimSnapFilter.reset();
         subLowPass.reset();
@@ -173,10 +181,14 @@ public:
     void setChatTone(float hz) noexcept
     {
         chatToneCutoff.store(hz, std::memory_order_relaxed);
-        hatBandPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, juce::jlimit(3000.0f, 15000.0f, hz), 2.0f);
+        hatBandPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, juce::jlimit(1500.0f, 15000.0f, hz), chatResAmount.load(std::memory_order_relaxed));
     }
     void setChatSizzle(float norm) noexcept { chatSizzleLevel.store(norm, std::memory_order_relaxed); }
-    void setChatRes(float q) noexcept { chatResAmount.store(q, std::memory_order_relaxed); }
+    void setChatRes(float q) noexcept
+    {
+        chatResAmount.store(q, std::memory_order_relaxed);
+        hatBandPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, juce::jlimit(1500.0f, 15000.0f, chatToneCutoff.load(std::memory_order_relaxed)), juce::jlimit(0.5f, 6.0f, q));
+    }
     void setChatDrive(float norm) noexcept { chatDriveAmount.store(norm, std::memory_order_relaxed); }
 
     // --- 5. Open Hat Setters ---
@@ -264,7 +276,9 @@ public:
             // 4. CLOSED HI-HAT (Note 42 / Key 'F')
             else if (note == 42)
             {
-                closedHatEnv = vel * 1.2f;
+                closedHatEnv = vel * 1.35f;
+                closedHatClickEnv = vel * 1.8f;
+                closedHatSizzleEnv = vel * 1.4f;
                 const float choke = ohatChokeAmount.load(std::memory_order_relaxed);
                 openHatEnv *= (1.0f - choke);
             }
@@ -310,6 +324,7 @@ public:
 
         const float snPitchRatio = std::pow(2.0f, snarePitchSemi.load(std::memory_order_relaxed) / 12.0f);
         const float clPitchRatio = std::pow(2.0f, clapPitchSemi.load(std::memory_order_relaxed) / 12.0f);
+        const float chPitchRatio = std::pow(2.0f, chatPitchSemi.load(std::memory_order_relaxed) / 12.0f);
 
         // Kick Coefficients matching physical spectrogram
         const float kDecaySec = (kickDecayMs.load(std::memory_order_relaxed) * 0.001f) * 0.82f * kSpeedFactor;
@@ -339,8 +354,11 @@ public:
         const float clTransientDecay = std::exp(-1.0f / (0.014f * static_cast<float>(sampleRate)));
         const float clMainDecay      = std::exp(-1.0f / (juce::jmax(0.01f, clDecaySec * 0.42f) * static_cast<float>(sampleRate)));
 
-        // Hats Decay Coefficients
-        const float chatDecay = std::exp(-1.0f / ((chatDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
+        // Hats Decay Coefficients (Calibrated to spectrogram: ~75ms total duration, ~5.5ms click, ~30ms sizzle)
+        const float chatDecaySec = (chatDecayMs.load(std::memory_order_relaxed) * 0.001f);
+        const float chatDecay = std::exp(-1.0f / (juce::jmax(0.01f, chatDecaySec * 0.70f) * static_cast<float>(sampleRate)));
+        const float chatClickDecay = std::exp(-1.0f / (0.0055f * static_cast<float>(sampleRate)));
+        const float chatSizzleDecay = std::exp(-1.0f / (juce::jmax(0.008f, chatDecaySec * 0.38f) * static_cast<float>(sampleRate)));
         const float ohatDecay = std::exp(-1.0f / ((ohatDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
         const float rimDecay  = std::exp(-1.0f / ((rimDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
         const float subDecay  = std::exp(-1.0f / ((subDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
@@ -350,7 +368,7 @@ public:
         const float shAttackStep = 1.0f / (juce::jmax(0.001f, shakerAttackMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate));
         const float shDecayCoef = std::exp(-1.0f / ((shakerDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
 
-        constexpr std::array<float, 6> hatFreqs = { 245.0f, 306.0f, 384.0f, 523.0f, 659.0f, 831.0f };
+        constexpr std::array<float, 6> hatFreqs = { 263.0f, 323.0f, 396.0f, 518.0f, 687.0f, 822.0f };
 
         for (int sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx)
         {
@@ -454,36 +472,47 @@ public:
                 clapEnv          *= clMainDecay;
             }
 
-            // 4. CLOSED & OPEN HI-HATS
-            if (closedHatEnv > 1.0e-4f || openHatEnv > 1.0e-4f)
+            // 4. CLOSED & OPEN HI-HATS (Calibrated to spectrogram: ~75ms duration, wideband 15kHz stick transient, 480Hz body, 7.8kHz metallic band, dynamic high damping)
+            if (closedHatEnv > 1.0e-4f || openHatEnv > 1.0e-4f || closedHatClickEnv > 1.0e-4f)
             {
                 float metallicSum = 0.0f;
                 for (size_t osc = 0; osc < hatFreqs.size(); ++osc)
                 {
-                    hatPhases[osc] += twoPi * hatFreqs[osc] * samplePeriod;
+                    hatPhases[osc] += twoPi * (hatFreqs[osc] * chPitchRatio) * samplePeriod;
                     if (hatPhases[osc] >= twoPi) hatPhases[osc] -= twoPi;
                     metallicSum += (hatPhases[osc] < juce::MathConstants<float>::pi ? 1.0f : -1.0f);
                 }
                 metallicSum *= (1.0f / 6.0f);
 
-                const float hatNoise = (nextRandomFloat() * 2.0f - 1.0f) * 0.4f;
-                const float combinedHat = metallicSum * 0.6f + hatNoise;
-                const float hpFiltered = hatHighPass.processSample(combinedHat);
-                const float bpFiltered = hatBandPass.processSample(hpFiltered);
+                const float whiteNoise = nextRandomFloat() * 2.0f - 1.0f;
+                const float rawMetal = hatHighPass.processSample(metallicSum * 0.65f + whiteNoise * 0.35f);
+                const float bandMetal = hatBandPass.processSample(rawMetal);
+                const float sizzleMetal = hatSizzleFilter.processSample(rawMetal + whiteNoise * 0.35f);
+                const float bodyThump = hatBodyFilter.processSample(whiteNoise * 0.7f + metallicSum * 0.3f);
 
-                if (closedHatEnv > 1.0e-4f)
+                if (closedHatEnv > 1.0e-4f || closedHatClickEnv > 1.0e-4f)
                 {
                     const float sizzle = chatSizzleLevel.load(std::memory_order_relaxed);
-                    const float drive = 1.0f + 0.8f * chatDriveAmount.load(std::memory_order_relaxed);
-                    synthSample += std::tanh((bpFiltered + hatNoise * sizzle * 0.3f) * drive) * closedHatEnv * 0.95f;
-                    closedHatEnv *= chatDecay;
+                    const float drive = 1.0f + 0.9f * chatDriveAmount.load(std::memory_order_relaxed);
+
+                    const float stickClick = whiteNoise * closedHatClickEnv * 0.65f;
+                    const float bodyChick = bodyThump * closedHatClickEnv * 0.55f;
+                    const float midRing = bandMetal * closedHatEnv * 1.25f;
+                    const float highSizzle = sizzleMetal * closedHatSizzleEnv * (0.85f * sizzle);
+
+                    const float rawHat = (stickClick + bodyChick + midRing + highSizzle) * drive;
+                    synthSample += std::tanh(rawHat * 1.4f) * 1.0f;
+
+                    closedHatClickEnv  *= chatClickDecay;
+                    closedHatSizzleEnv *= chatSizzleDecay;
+                    closedHatEnv       *= chatDecay;
                 }
 
                 if (openHatEnv > 1.0e-4f)
                 {
                     const float sizzle = ohatSizzleLevel.load(std::memory_order_relaxed);
                     const float drive = 1.0f + 0.8f * ohatDriveAmount.load(std::memory_order_relaxed);
-                    synthSample += std::tanh((bpFiltered + hatNoise * sizzle * 0.4f) * drive) * openHatEnv * 0.90f;
+                    synthSample += std::tanh((bandMetal * 1.15f + sizzleMetal * (sizzle * 0.75f)) * drive) * openHatEnv * 0.90f;
                     openHatEnv *= ohatDecay;
                 }
             }
@@ -657,13 +686,15 @@ private:
 
     // 4. Closed Hat State & Parameters
     std::atomic<float> chatPitchSemi { 0.0f };
-    std::atomic<float> chatDecayMs { 45.0f };
-    std::atomic<float> chatToneCutoff { 9500.0f };
-    std::atomic<float> chatSizzleLevel { 0.60f };
-    std::atomic<float> chatResAmount { 2.0f };
-    std::atomic<float> chatDriveAmount { 0.30f };
+    std::atomic<float> chatDecayMs { 70.0f };
+    std::atomic<float> chatToneCutoff { 7800.0f };
+    std::atomic<float> chatSizzleLevel { 0.65f };
+    std::atomic<float> chatResAmount { 1.6f };
+    std::atomic<float> chatDriveAmount { 0.35f };
 
     float closedHatEnv { 0.0f };
+    float closedHatClickEnv { 0.0f };
+    float closedHatSizzleEnv { 0.0f };
 
     // 5. Open Hat State & Parameters
     std::atomic<float> ohatPitchSemi { 0.0f };
@@ -677,6 +708,8 @@ private:
     std::array<float, 6> hatPhases {};
     juce::dsp::IIR::Filter<float> hatHighPass;
     juce::dsp::IIR::Filter<float> hatBandPass;
+    juce::dsp::IIR::Filter<float> hatBodyFilter;
+    juce::dsp::IIR::Filter<float> hatSizzleFilter;
 
     // 6. Rimshot State & Parameters
     std::atomic<float> rimPitchSemi { 0.0f };

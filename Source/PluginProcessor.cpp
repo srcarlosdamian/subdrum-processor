@@ -118,7 +118,7 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
                 { "kickPitch", 0.0f }, { "kickTune", 54.0f }, { "kickSweep", 175.0f }, { "kickDecay", 175.0f }, { "kickPunch", 85.0f }, { "kickDrive", 60.0f },
                 { "snarePitch", 0.0f }, { "snareDecay", 180.0f }, { "snareSnap", 85.0f }, { "snareTone", 195.0f }, { "snareCrack", 80.0f }, { "snareDrive", 40.0f },
                 { "clapPitch", 0.0f }, { "clapDecay", 160.0f }, { "clapWood", 92.0f }, { "clapSlap", 85.0f }, { "clapTone", 6800.0f }, { "clapTail", 35.0f },
-                { "chatPitch", 0.0f }, { "chatDecay", 45.0f }, { "chatTone", 9500.0f }, { "chatSizzle", 60.0f }, { "chatRes", 2.0f }, { "chatDrive", 30.0f },
+                { "chatPitch", 0.0f }, { "chatDecay", 70.0f }, { "chatTone", 7800.0f }, { "chatSizzle", 65.0f }, { "chatRes", 1.6f }, { "chatDrive", 35.0f },
                 { "ohatPitch", 0.0f }, { "ohatDecay", 320.0f }, { "ohatTone", 8500.0f }, { "ohatSizzle", 70.0f }, { "ohatChoke", 100.0f }, { "ohatDrive", 35.0f },
                 { "rimPitch", 0.0f }, { "rimDecay", 28.0f }, { "rimTune", 480.0f }, { "rimSnap", 85.0f }, { "rimTone", 6000.0f }, { "rimDrive", 40.0f },
                 { "subTune", 42.0f }, { "subDecay", 500.0f }, { "subSweep", 40.0f }, { "subDrive", 45.0f }, { "subCutoff", 320.0f }, { "subLevel", 0.0f },
@@ -367,11 +367,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
 
     // --- 4. CLOSED HAT PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatPitch", 1 }, "Hat Pitch", juce::NormalisableRange<float>(-12.0f, 12.0f, 1.0f), 0.0f, juce::AudioParameterFloatAttributes().withLabel("st")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatDecay", 1 }, "Hat Decay", juce::NormalisableRange<float>(15.0f, 200.0f, 1.0f), 45.0f, juce::AudioParameterFloatAttributes().withLabel("ms")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatTone", 1 }, "Hat Cutoff", juce::NormalisableRange<float>(3000.0f, 14000.0f, 10.0f, 0.35f), 9500.0f, juce::AudioParameterFloatAttributes().withLabel("Hz")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatSizzle", 1 }, "Hat Sizzle", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 60.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatRes", 1 }, "Hat Resonance", juce::NormalisableRange<float>(0.5f, 5.0f, 0.1f), 2.0f, juce::AudioParameterFloatAttributes().withLabel("Q")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatDrive", 1 }, "Hat Drive", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 30.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatDecay", 1 }, "Hat Decay", juce::NormalisableRange<float>(15.0f, 200.0f, 1.0f), 70.0f, juce::AudioParameterFloatAttributes().withLabel("ms")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatTone", 1 }, "Hat Cutoff", juce::NormalisableRange<float>(1500.0f, 14000.0f, 10.0f, 0.35f), 7800.0f, juce::AudioParameterFloatAttributes().withLabel("Hz")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatSizzle", 1 }, "Hat Sizzle", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 65.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatRes", 1 }, "Hat Resonance", juce::NormalisableRange<float>(0.5f, 5.0f, 0.1f), 1.6f, juce::AudioParameterFloatAttributes().withLabel("Q")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "chatDrive", 1 }, "Hat Drive", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 35.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // --- 5. OPEN HAT PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "ohatPitch", 1 }, "Open Hat Pitch", juce::NormalisableRange<float>(-12.0f, 12.0f, 1.0f), 0.0f, juce::AudioParameterFloatAttributes().withLabel("st")));
