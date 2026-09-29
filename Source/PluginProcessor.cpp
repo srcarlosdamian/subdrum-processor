@@ -3,7 +3,6 @@
 
 SubdrumProcessorAudioProcessor::SubdrumProcessorAudioProcessor()
     : AudioProcessor(BusesProperties()
-                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
@@ -517,14 +516,17 @@ void SubdrumProcessorAudioProcessor::releaseResources()
 
 bool SubdrumProcessorAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+    const auto& mainOutput = layouts.getMainOutputChannelSet();
+
+    if (mainOutput != juce::AudioChannelSet::mono()
+     && mainOutput != juce::AudioChannelSet::stereo())
         return false;
 
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-        return false;
+    const auto& mainInput = layouts.getMainInputChannelSet();
+    if (mainInput.isDisabled() || mainInput == mainOutput || mainInput == juce::AudioChannelSet::mono() || mainInput == juce::AudioChannelSet::stereo())
+        return true;
 
-    return true;
+    return false;
 }
 
 void SubdrumProcessorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)

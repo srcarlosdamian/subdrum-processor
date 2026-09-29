@@ -23,7 +23,7 @@ endif()
 # Plugin Target Configuration
 juce_add_plugin(SubdrumProcessor
     COMPANY_NAME "UndergroundDSP"
-    IS_SYNTH FALSE
+    IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
