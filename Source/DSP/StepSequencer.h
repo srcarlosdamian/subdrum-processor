@@ -54,9 +54,9 @@ public:
     void setPlaying(bool play)
     {
         playing.store(play, std::memory_order_release);
+        sampleCounter = 0;
         if (!play)
         {
-            sampleCounter = 0;
             currentStep.store(0, std::memory_order_relaxed);
         }
     }
@@ -79,7 +79,6 @@ public:
 
     void setSwing(float swingPercent) noexcept
     {
-        // swingPercent: 50.0% (straight) to 75.0% (heavy shuffle)
         swingRatio.store(std::clamp(swingPercent * 0.01f, 0.50f, 0.75f), std::memory_order_relaxed);
         updateStepTiming();
     }
@@ -140,48 +139,48 @@ public:
             case RhythmPreset::TwoStepClassic:
                 // Kick: 1 (0), 2.3 (6), 3.3 (10)
                 pattern[0][0].store(true); pattern[0][6].store(true); pattern[0][10].store(true);
-                // Clap: Beat 2 (4), Beat 4 (12)
+                // Snare: Beat 2 (4), Beat 4 (12)
                 pattern[1][4].store(true); pattern[1][12].store(true);
+                // Clap: layered on Beat 4 (12)
+                pattern[2][12].store(true);
                 // Closed Hat: shuffling 16ths
-                pattern[2][2].store(true); pattern[2][4].store(true); pattern[2][6].store(true);
-                pattern[2][8].store(true); pattern[2][10].store(true); pattern[2][12].store(true); pattern[2][14].store(true);
-                // Open Hat / Perc: syncopated off-beats
-                pattern[3][7].store(true); pattern[3][15].store(true);
+                pattern[3][2].store(true); pattern[3][4].store(true); pattern[3][6].store(true);
+                pattern[3][8].store(true); pattern[3][10].store(true); pattern[3][12].store(true); pattern[3][14].store(true);
                 break;
 
             case RhythmPreset::SyncopatedGarage:
                 pattern[0][0].store(true); pattern[0][7].store(true); pattern[0][10].store(true);
                 pattern[1][4].store(true); pattern[1][12].store(true); pattern[1][15].store(true);
-                for (int s : { 0, 2, 4, 6, 8, 10, 11, 12, 14 }) pattern[2][s].store(true);
-                pattern[3][3].store(true); pattern[3][9].store(true);
+                pattern[2][12].store(true);
+                for (int s : { 0, 2, 4, 6, 8, 10, 11, 12, 14 }) pattern[3][s].store(true);
                 break;
 
             case RhythmPreset::HalfStepDub:
                 pattern[0][0].store(true); pattern[0][10].store(true);
                 pattern[1][8].store(true); // Half-step snare on Beat 3 (step 8)
-                for (int s = 0; s < 16; s += 2) pattern[2][s].store(true);
-                pattern[3][6].store(true); pattern[3][14].store(true);
+                pattern[2][8].store(true);
+                for (int s = 0; s < 16; s += 2) pattern[3][s].store(true);
                 break;
 
             case RhythmPreset::BrokenBeat:
                 pattern[0][0].store(true); pattern[0][3].store(true); pattern[0][8].store(true); pattern[0][11].store(true);
                 pattern[1][4].store(true); pattern[1][12].store(true); pattern[1][14].store(true);
-                for (int s : { 2, 5, 8, 10, 13 }) pattern[2][s].store(true);
-                pattern[3][7].store(true); pattern[3][15].store(true);
+                pattern[2][4].store(true);
+                for (int s : { 2, 5, 8, 10, 13 }) pattern[3][s].store(true);
                 break;
 
             case RhythmPreset::StraightFour:
-                for (int s = 0; s < 16; s += 4) pattern[0][s].store(true); // 4-on-floor kick
+                for (int s = 0; s < 16; s += 4) pattern[0][s].store(true);
                 pattern[1][4].store(true); pattern[1][12].store(true);
-                for (int s = 2; s < 16; s += 4) pattern[2][s].store(true); // off-beat hats
-                pattern[3][6].store(true); pattern[3][14].store(true);
+                pattern[2][12].store(true);
+                for (int s = 2; s < 16; s += 4) pattern[3][s].store(true);
                 break;
 
             case RhythmPreset::GhostClap:
                 pattern[0][0].store(true); pattern[0][8].store(true);
-                pattern[1][4].store(true); pattern[1][11].store(true); pattern[1][12].store(true);
-                for (int s = 0; s < 16; s += 2) pattern[2][s].store(true);
-                pattern[3][1].store(true); pattern[3][9].store(true);
+                pattern[1][4].store(true); pattern[1][12].store(true);
+                pattern[2][4].store(true); pattern[2][11].store(true); pattern[2][12].store(true);
+                for (int s = 0; s < 16; s += 2) pattern[3][s].store(true);
                 break;
 
             case RhythmPreset::ClearAll:
@@ -211,10 +210,15 @@ public:
         const bool sync = hostSync.load(std::memory_order_relaxed);
         if (sync)
         {
-            if (hostIsPlaying && !playing.load(std::memory_order_relaxed))
+            if (hostIsPlaying && !wasHostPlaying)
+            {
                 setPlaying(true);
-            else if (!hostIsPlaying && playing.load(std::memory_order_relaxed))
+            }
+            else if (!hostIsPlaying && wasHostPlaying)
+            {
                 setPlaying(false);
+            }
+            wasHostPlaying = hostIsPlaying;
         }
 
         if (!playing.load(std::memory_order_relaxed))
@@ -271,9 +275,10 @@ private:
     int sampleCounter { 0 };
 
     std::atomic<float> swingRatio { 0.58f }; // 58% Default UK Garage Swing
-    std::atomic<bool> hostSync { true };     // Auto-sync with DAW host
+    std::atomic<bool> hostSync { false };    // Off by default (enabled when DAW playback starts)
     std::atomic<bool> playing { false };
     std::atomic<int> currentStep { 0 };
+    bool wasHostPlaying { false };
 
     // 4 Tracks x 16 Steps atomic grid
     std::array<std::array<std::atomic<bool>, numSteps>, numTracks> pattern {};

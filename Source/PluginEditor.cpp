@@ -217,8 +217,8 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     };
     addAndMakeVisible(playButton);
 
-    hostSyncButton.setButtonText("DAW SYNC: ON");
-    hostSyncButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF233D4D));
+    hostSyncButton.setButtonText("DAW SYNC: OFF");
+    hostSyncButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xFF454B54));
     hostSyncButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEDEDF0));
     hostSyncButton.setWantsKeyboardFocus(false);
     hostSyncButton.onClick = [this]()
