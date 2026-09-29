@@ -169,7 +169,7 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
         {
             "04 // Lo-Fi 12-Bit Grime Crunch",
             {
-                { "kickPitch", 1.0f }, { "kickTune", 62.0f }, { "kickSweep", 85.0f }, { "kickDecay", 65.0f }, { "kickPunch", 80.0f }, { "kickDrive", 70.0f },
+                { "kickPitch", 0.0f }, { "kickTune", 48.0f }, { "kickSweep", 75.0f }, { "kickDecay", 125.0f }, { "kickPunch", 72.0f }, { "kickDrive", 65.0f },
                 { "snarePitch", 1.0f }, { "snareDecay", 150.0f }, { "snareSnap", 90.0f }, { "snareTone", 210.0f }, { "snareCrack", 85.0f }, { "snareDrive", 60.0f },
                 { "clapPitch", 2.0f }, { "clapDecay", 150.0f }, { "clapWood", 80.0f }, { "clapSlap", 85.0f }, { "clapTone", 5200.0f }, { "clapTail", 30.0f },
                 { "chatPitch", 2.0f }, { "chatDecay", 35.0f }, { "chatTone", 6800.0f }, { "chatSizzle", 70.0f }, { "chatRes", 2.8f }, { "chatDrive", 65.0f },
@@ -177,7 +177,7 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
                 { "rimPitch", 1.0f }, { "rimDecay", 22.0f }, { "rimTune", 520.0f }, { "rimSnap", 85.0f }, { "rimTone", 4800.0f }, { "rimDrive", 60.0f },
                 { "subTune", 44.0f }, { "subDecay", 450.0f }, { "subSweep", 35.0f }, { "subDrive", 65.0f }, { "subCutoff", 300.0f }, { "subLevel", 1.0f },
                 { "shakerAttack", 8.0f }, { "shakerDecay", 65.0f }, { "shakerTone", 4800.0f }, { "vinylCrackle", 40.0f }, { "vinylHiss", 30.0f }, { "shakerDrive", 50.0f },
-                { "roomMix", 15.0f }, { "roomSize", 40.0f }, { "echoTime", 220.0f }, { "echoFeedback", 35.0f }, { "echoMix", 15.0f },
+                { "roomMix", 10.0f }, { "roomSize", 35.0f }, { "echoTime", 220.0f }, { "echoFeedback", 0.0f }, { "echoMix", 0.0f },
                 { "drive", 18.0f }, { "tapeMix", 100.0f }, { "cutoff", 12000.0f }, { "resonance", 1.6f },
                 { "compThreshold", -16.0f }, { "compRatio", 4.5f }, { "compAttack", 1.5f }, { "compRelease", 30.0f }, { "compMakeup", 2.5f }, { "compMix", 100.0f },
                 { "vinylNoise", 25.0f }, { "vinylDust", 30.0f }, { "outputGain", 0.0f },
