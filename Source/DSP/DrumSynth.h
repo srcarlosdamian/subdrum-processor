@@ -9,13 +9,10 @@ namespace underground::dsp
 {
 
 /**
- * @brief Authentic UK 2-Step & Burial Acoustic Clap / Hard Snare Drum Synthesizer:
- *        - Sound 1 (KICK): Deep analog sub-bass, pitch drop, punch click beater, saturation, varispeed pitch drop.
- *        - Sound 2 (BURIAL CLAP / HARD SNARE):
- *          * Multi-transient acoustic flam (wooden pre-tap at t=0 + hard delayed slap at t=flamDelay).
- *          * Resonant acoustic wood/skin formants (1100Hz + 2900Hz + 5400Hz + 8500Hz).
- *          * Hard saturation clipper for aggressive, punchy impact.
- *          * Smooth diffuse acoustic room tail.
+ * @brief Authentic Underground Acoustic Clap & Bass Kick Drum Synthesizer:
+ *        - Sound 1 (KICK): Deep analog sub-bass, pitch drop, punch click beater, saturation, varispeed pitch.
+ *        - Sound 2 (ACOUSTIC CLAP): Single solid impact with organic wood/skin physical resonance,
+ *          low-noise multi-formant shaping (680Hz, 1050Hz, 2600Hz), and tight acoustic snap.
  */
 class DrumSynth
 {
@@ -34,7 +31,7 @@ public:
         kickBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 1200.0f, 0.707f);
         kickBodyFilter.reset();
 
-        // Burial Acoustic Clap Filter Array
+        // Acoustic Clap Filters
         updateClapFilters();
 
         reset();
@@ -49,19 +46,21 @@ public:
         kickBeaterEnv = 0.0f;
 
         clapSampleCounter = 999999;
-        preTapEnv = 0.0f;
-        clapMicroBurst1 = 0.0f;
-        clapMicroBurst2 = 0.0f;
-        clapMainEnv = 0.0f;
+        clapBurst1Env = 0.0f;
+        clapBurst2Env = 0.0f;
+        clapBurst3Env = 0.0f;
+        clapBodyPhase1 = 0.0f;
+        clapBodyPhase2 = 0.0f;
+        clapBodyEnv = 0.0f;
         currentVelocity = 0.0f;
 
         kickBeaterFilter.reset();
         kickBodyFilter.reset();
-        clapPreWoodFilter.reset();
+        clapBodyLowFilter.reset();
         clapWoodFilter.reset();
         clapSlapFilter.reset();
-        clapCrackFilter.reset();
-        clapSizzleFilter.reset();
+        clapAirFilter.reset();
+        clapToneLowPass.reset();
 
         rngState = 0x98765432;
     }
@@ -74,13 +73,20 @@ public:
     void setKickPunch(float norm) noexcept { kickPunchLevel.store(norm, std::memory_order_relaxed); }
     void setKickDrive(float driveNorm) noexcept { kickDriveAmount.store(driveNorm, std::memory_order_relaxed); }
 
-    // --- Burial Clap / Snare Parameter Setters ---
+    // --- Acoustic Clap Parameter Setters ---
     void setSnarePitchSemi(float semi) noexcept { snarePitchSemi.store(semi, std::memory_order_relaxed); }
     void setSnareDecay(float ms) noexcept { snareDecayMs.store(ms, std::memory_order_relaxed); }
     void setSnareWoodLevel(float norm) noexcept { snareWoodLevel.store(norm, std::memory_order_relaxed); }
     void setSnareSlapLevel(float norm) noexcept { snareSlapLevel.store(norm, std::memory_order_relaxed); }
-    void setSnareSizzleLevel(float norm) noexcept { snareSizzleLevel.store(norm, std::memory_order_relaxed); }
-    void setSnareFlamMs(float ms) noexcept { snareFlamMs.store(ms, std::memory_order_relaxed); }
+    void setSnareToneCutoff(float hz) noexcept
+    {
+        if (std::abs(lastToneHz - hz) > 20.0f)
+        {
+            lastToneHz = hz;
+            clapToneLowPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, juce::jlimit(800.0f, 18000.0f, hz), 0.707f);
+        }
+    }
+    void setSnareRoomTail(float norm) noexcept { snareRoomTail.store(norm, std::memory_order_relaxed); }
 
     void handleMidiEvent(const juce::MidiMessage& msg)
     {
@@ -98,15 +104,20 @@ public:
                 kickPhase = 0.0f;
                 kickHarmonicPhase = 0.0f;
             }
-            // Sound 2: BURIAL ACOUSTIC CLAP / HARD SNARE (Note 38 / Key 'S')
+            // Sound 2: SINGLE ACOUSTIC CLAP (Note 38 / Key 'S')
             else if (note == 38)
             {
                 currentVelocity = vel;
                 clapSampleCounter = 0;
-                preTapEnv = vel * 0.95f; // Initial pre-tap wood tick at t=0
-                clapMicroBurst1 = 0.0f;
-                clapMicroBurst2 = 0.0f;
-                clapMainEnv = 0.0f;
+                // Single coherent strike: 3 ultra-fast micro-taps within 0-6ms for natural palm rattle
+                clapBurst1Env = vel * 1.4f;
+                clapBurst2Env = 0.0f;
+                clapBurst3Env = 0.0f;
+
+                // Organic acoustic wood/body resonant impulse
+                clapBodyEnv = vel * 1.25f;
+                clapBodyPhase1 = 0.0f;
+                clapBodyPhase2 = 0.0f;
             }
         }
     }
@@ -139,21 +150,19 @@ public:
         const float kSweep = kickSweepDepth.load(std::memory_order_relaxed) * kPitchRatio;
         const float kDriveFactor = 1.2f + 0.8f * kickDriveAmount.load(std::memory_order_relaxed);
 
-        // Dynamic Burial Clap Coefficients
+        // Dynamic Acoustic Clap Coefficients (Instant Single Strike)
         const float sDecaySec = (snareDecayMs.load(std::memory_order_relaxed) * 0.001f) * sSpeedFactor;
-        const float flamSec = (snareFlamMs.load(std::memory_order_relaxed) * 0.001f) * sSpeedFactor;
+        const float woodGain = snareWoodLevel.load(std::memory_order_relaxed);
+        const float slapGain = snareSlapLevel.load(std::memory_order_relaxed);
+        const float roomGain = snareRoomTail.load(std::memory_order_relaxed);
 
-        const int flamSample = static_cast<int>(flamSec * static_cast<float>(sampleRate));
-        const int micro1Sample = juce::jmax(0, flamSample - static_cast<int>(0.012f * static_cast<float>(sampleRate)));
-        const int micro2Sample = juce::jmax(0, flamSample - static_cast<int>(0.006f * static_cast<float>(sampleRate)));
+        // Micro-flam spacing tightly packed inside first 6ms for organic hand texture
+        const int tap2Sample = static_cast<int>(0.0028f * static_cast<float>(sampleRate));
+        const int tap3Sample = static_cast<int>(0.0058f * static_cast<float>(sampleRate));
 
-        const float preTapDecay = std::exp(-1.0f / ((0.038f * sSpeedFactor) * static_cast<float>(sampleRate)));
-        const float microDecay  = std::exp(-1.0f / ((0.008f * sSpeedFactor) * static_cast<float>(sampleRate)));
-        const float mainSlapDecay = std::exp(-1.0f / (juce::jmax(0.01f, sDecaySec * 0.42f) * static_cast<float>(sampleRate)));
-
-        const float woodGain   = snareWoodLevel.load(std::memory_order_relaxed);
-        const float slapGain   = snareSlapLevel.load(std::memory_order_relaxed);
-        const float sizzleGain = snareSizzleLevel.load(std::memory_order_relaxed);
+        const float microDecay = std::exp(-1.0f / ((0.009f * sSpeedFactor) * static_cast<float>(sampleRate)));
+        const float mainDecay  = std::exp(-1.0f / (juce::jmax(0.01f, sDecaySec * 0.38f) * static_cast<float>(sampleRate)));
+        const float bodyDecay  = std::exp(-1.0f / ((0.032f * sSpeedFactor) * static_cast<float>(sampleRate)));
 
         for (int sampleIdx = 0; sampleIdx < numSamples; ++sampleIdx)
         {
@@ -195,61 +204,51 @@ public:
                 kickPitchEnv *= pitchDecayCoef;
             }
 
-            // 2. Burial Acoustic Hard Clap Engine (Sound 2)
-            if (clapSampleCounter < static_cast<int>(0.60f * static_cast<float>(sampleRate)))
+            // 2. Single Solid Acoustic Clap Engine (Sound 2)
+            if (clapSampleCounter < static_cast<int>(0.50f * static_cast<float>(sampleRate)))
             {
-                // Trigger micro-flams and delayed main slap strike
-                if (flamSample > 0)
+                if (clapSampleCounter == tap2Sample)
+                    clapBurst2Env = currentVelocity * 1.15f;
+                if (clapSampleCounter == tap3Sample)
+                    clapBurst3Env = currentVelocity * 1.85f;
+
+                const float totalBurst = (clapBurst1Env + clapBurst2Env + clapBurst3Env);
+
+                if (totalBurst > 1.0e-4f || clapBodyEnv > 1.0e-4f)
                 {
-                    if (clapSampleCounter == micro1Sample)
-                        clapMicroBurst1 = currentVelocity * 0.85f;
-                    if (clapSampleCounter == micro2Sample)
-                        clapMicroBurst2 = currentVelocity * 1.10f;
-                    if (clapSampleCounter == flamSample)
-                        clapMainEnv = currentVelocity * 2.20f; // Heavy hard slap impact
-                }
-                else
-                {
-                    if (clapSampleCounter == 0)
-                        clapMainEnv = currentVelocity * 2.20f;
-                }
+                    const float rawNoise = (nextRandomFloat() * 2.0f - 1.0f) * totalBurst;
 
-                float clapOutput = 0.0f;
+                    // Organic Acoustic Formants (Wood + Skin Palm + Hard Slap)
+                    const float woodPart  = clapWoodFilter.processSample(rawNoise)      * (1.55f * woodGain); // 1050Hz wood body
+                    const float lowWood   = clapBodyLowFilter.processSample(rawNoise)   * (1.20f * woodGain); // 680Hz warm hollow box
+                    const float slapPart  = clapSlapFilter.processSample(rawNoise)      * (1.65f * slapGain); // 2600Hz palm slap
+                    const float airPart   = clapAirFilter.processSample(rawNoise)       * (0.85f * roomGain); // 5800Hz air tail
 
-                // A. Wooden Pre-tap at t=0 (as seen in spectrogram 0.00s-0.08s)
-                if (preTapEnv > 1.0e-4f)
-                {
-                    const float preNoise = (nextRandomFloat() * 2.0f - 1.0f) * preTapEnv;
-                    const float woodPre = clapPreWoodFilter.processSample(preNoise) * (1.1f * woodGain);
-                    clapOutput += woodPre;
-                    preTapEnv *= preTapDecay;
-                }
+                    // Dual Acoustic Tonal Resonators for Organic Physical Impact (240Hz & 580Hz)
+                    const float bodySine1 = std::sin(clapBodyPhase1) * 0.65f;
+                    const float bodySine2 = std::sin(clapBodyPhase2) * 0.35f;
+                    const float acousticTonal = (bodySine1 + bodySine2) * (clapBodyEnv * woodGain * 1.1f);
 
-                // B. Hard Main Acoustic Slap Strike + Room Tail (as seen at t=0.145s)
-                const float slapNoiseBurst = (clapMicroBurst1 + clapMicroBurst2 + clapMainEnv);
-                if (slapNoiseBurst > 1.0e-4f)
-                {
-                    const float rawNoise = (nextRandomFloat() * 2.0f - 1.0f) * slapNoiseBurst;
+                    clapBodyPhase1 += twoPi * (240.0f * sPitchRatio) * samplePeriod;
+                    if (clapBodyPhase1 >= twoPi) clapBodyPhase1 -= twoPi;
 
-                    // Formant Filter Bank for Organic Handclap & Acoustic Wood
-                    const float woodPart   = clapWoodFilter.processSample(rawNoise)   * (1.45f * woodGain);   // 1100Hz skin/wood
-                    const float slapPart   = clapSlapFilter.processSample(rawNoise)   * (1.75f * slapGain);   // 2900Hz hard bite smack
-                    const float crackPart  = clapCrackFilter.processSample(rawNoise)  * (1.30f * slapGain);   // 5400Hz snap
-                    const float sizzlePart = clapSizzleFilter.processSample(rawNoise) * (1.10f * sizzleGain); // 8500Hz air
+                    clapBodyPhase2 += twoPi * (580.0f * sPitchRatio) * samplePeriod;
+                    if (clapBodyPhase2 >= twoPi) clapBodyPhase2 -= twoPi;
 
-                    const float combinedSlap = (woodPart + slapPart + crackPart + sizzlePart);
+                    const float rawClapSum = woodPart + lowWood + slapPart + airPart + acousticTonal;
 
-                    // Hard non-linear acoustic clipper for punchy "duro" impact
-                    clapOutput += std::tanh(combinedSlap * 1.65f);
+                    // Low-Pass Tone Control to filter out unwanted digital noise
+                    const float filteredClap = clapToneLowPass.processSample(rawClapSum);
 
-                    clapMicroBurst1 *= microDecay;
-                    clapMicroBurst2 *= microDecay;
-                    clapMainEnv     *= mainSlapDecay;
-                }
+                    // Solid non-linear saturation for hard, punchy acoustic snap
+                    const float saturatedClap = std::tanh(filteredClap * 1.6f);
 
-                if (clapOutput != 0.0f)
-                {
-                    synthSample += clapOutput * 1.15f;
+                    synthSample += saturatedClap * 1.25f;
+
+                    clapBurst1Env *= microDecay;
+                    clapBurst2Env *= microDecay;
+                    clapBurst3Env *= mainDecay;
+                    clapBodyEnv   *= bodyDecay;
                 }
 
                 ++clapSampleCounter;
@@ -269,25 +268,25 @@ public:
 private:
     void updateClapFilters()
     {
-        // Acoustic Pre-Tap Filter (850Hz hollow wood tick)
-        clapPreWoodFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 850.0f, 1.8f);
-        clapPreWoodFilter.reset();
+        // 1. Warm Hollow Wood Resonance (680 Hz, Q=2.5)
+        clapBodyLowFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 680.0f, 2.5f);
+        clapBodyLowFilter.reset();
 
-        // 1. Acoustic Wood / Handclap Skin Formant (1100 Hz, Q=2.2)
-        clapWoodFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1100.0f, 2.2f);
+        // 2. Organic Palm / Acoustic Wood Formant (1050 Hz, Q=3.0)
+        clapWoodFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1050.0f, 3.0f);
         clapWoodFilter.reset();
 
-        // 2. Hard Slap Smack Formant (2900 Hz, Q=2.4)
-        clapSlapFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 2900.0f, 2.4f);
+        // 3. Hard Acoustic Palm Slap Smack (2600 Hz, Q=2.8)
+        clapSlapFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 2600.0f, 2.8f);
         clapSlapFilter.reset();
 
-        // 3. Crisp Snap Transient (5400 Hz, Q=1.8)
-        clapCrackFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 5400.0f, 1.8f);
-        clapCrackFilter.reset();
+        // 4. Subtle Air Resonance (5800 Hz, Q=1.6)
+        clapAirFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 5800.0f, 1.6f);
+        clapAirFilter.reset();
 
-        // 4. High Air Sizzle (8500 Hz High-Shelf / Bandpass)
-        clapSizzleFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 7500.0f, 0.707f);
-        clapSizzleFilter.reset();
+        // 5. Low-Pass Tone Filter (rolls off harsh high noise above 7.5 kHz)
+        clapToneLowPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 7500.0f, 0.707f);
+        clapToneLowPass.reset();
     }
 
     inline float nextRandomFloat() noexcept
@@ -318,26 +317,29 @@ private:
     juce::dsp::IIR::Filter<float> kickBeaterFilter;
     juce::dsp::IIR::Filter<float> kickBodyFilter;
 
-    // Burial Acoustic Clap State & Parameters
+    // Single Solid Acoustic Clap State & Parameters
     std::atomic<float> snarePitchSemi { 0.0f };     // -24 to +12 semitones
-    std::atomic<float> snareDecayMs { 320.0f };     // 320ms matching 0.38s spectrogram tail
-    std::atomic<float> snareWoodLevel { 0.85f };    // 1100Hz organic acoustic wood
-    std::atomic<float> snareSlapLevel { 0.90f };    // 2900Hz hard bite smack
-    std::atomic<float> snareSizzleLevel { 0.75f };  // 7500Hz air sizzle
-    std::atomic<float> snareFlamMs { 135.0f };      // 135ms matching the exact delayed slap peak in spectrogram!
+    std::atomic<float> snareDecayMs { 180.0f };     // 180ms punchy tight acoustic decay
+    std::atomic<float> snareWoodLevel { 0.85f };    // 680Hz + 1050Hz organic wood formants
+    std::atomic<float> snareSlapLevel { 0.90f };    // 2600Hz palm slap bite
+    std::atomic<float> snareRoomTail { 0.40f };     // 5800Hz air
+    float lastToneHz { 7500.0f };
 
     int clapSampleCounter { 999999 };
     float currentVelocity { 1.0f };
-    float preTapEnv { 0.0f };
-    float clapMicroBurst1 { 0.0f };
-    float clapMicroBurst2 { 0.0f };
-    float clapMainEnv { 0.0f };
+    float clapBurst1Env { 0.0f };
+    float clapBurst2Env { 0.0f };
+    float clapBurst3Env { 0.0f };
 
-    juce::dsp::IIR::Filter<float> clapPreWoodFilter;
+    float clapBodyPhase1 { 0.0f };
+    float clapBodyPhase2 { 0.0f };
+    float clapBodyEnv { 0.0f };
+
+    juce::dsp::IIR::Filter<float> clapBodyLowFilter;
     juce::dsp::IIR::Filter<float> clapWoodFilter;
     juce::dsp::IIR::Filter<float> clapSlapFilter;
-    juce::dsp::IIR::Filter<float> clapCrackFilter;
-    juce::dsp::IIR::Filter<float> clapSizzleFilter;
+    juce::dsp::IIR::Filter<float> clapAirFilter;
+    juce::dsp::IIR::Filter<float> clapToneLowPass;
 };
 
 } // namespace underground::dsp

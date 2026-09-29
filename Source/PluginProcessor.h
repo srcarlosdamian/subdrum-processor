@@ -114,13 +114,13 @@ private:
     std::atomic<float>* kickPunchParam { nullptr };
     std::atomic<float>* kickDriveParam { nullptr };
 
-    // Burial Clap / Snare Engine Parameter Pointers
+    // Acoustic Clap Engine Parameter Pointers
     std::atomic<float>* snarePitchParam { nullptr };
     std::atomic<float>* snareDecayParam { nullptr };
     std::atomic<float>* snareWoodParam { nullptr };
     std::atomic<float>* snareSlapParam { nullptr };
-    std::atomic<float>* snareSizzleParam { nullptr };
-    std::atomic<float>* snareFlamParam { nullptr };
+    std::atomic<float>* snareToneParam { nullptr };
+    std::atomic<float>* snareTailParam { nullptr };
 
     // Master DSP, Dub Echo & Room Ambience Parameter Pointers
     std::atomic<float>* roomMixParam { nullptr };

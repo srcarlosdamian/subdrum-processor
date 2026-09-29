@@ -34,9 +34,9 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
         addAndMakeVisible(btn);
     };
 
-    setupTabBtn(kickTabButton,   "1. BASS KICK",    SoundTab::Kick);
-    setupTabBtn(snareTabButton,  "2. BURIAL CLAP",  SoundTab::SnareClap);
-    setupTabBtn(masterTabButton, "3. MASTER DSP",   SoundTab::MasterDSP);
+    setupTabBtn(kickTabButton,   "1. BASS KICK",     SoundTab::Kick);
+    setupTabBtn(snareTabButton,  "2. ACOUSTIC CLAP", SoundTab::SnareClap);
+    setupTabBtn(masterTabButton, "3. MASTER DSP",    SoundTab::MasterDSP);
 
     // 1. KICK CONTROLS (6 Knobs)
     setupControl(kickPitchKnob, "kickPitch", "Pitch (st)");
@@ -46,13 +46,13 @@ SubdrumProcessorAudioProcessorEditor::SubdrumProcessorAudioProcessorEditor(Subdr
     setupControl(kickPunchKnob, "kickPunch", "Punch Click");
     setupControl(kickDriveKnob, "kickDrive", "Overdrive");
 
-    // 2. BURIAL CLAP / HARD SNARE CONTROLS (6 Knobs)
-    setupControl(snarePitchKnob,  "snarePitch",  "Pitch (st)");
-    setupControl(snareDecayKnob,  "snareDecay",  "Decay (ms)");
-    setupControl(snareWoodKnob,   "snareWood",   "Acoustic Wood");
-    setupControl(snareSlapKnob,   "snareSlap",   "Hard Slap");
-    setupControl(snareSizzleKnob, "snareSizzle", "Air Sizzle");
-    setupControl(snareFlamKnob,   "snareFlam",   "Burial Flam");
+    // 2. ACOUSTIC CLAP CONTROLS (6 Knobs)
+    setupControl(snarePitchKnob, "snarePitch", "Pitch (st)");
+    setupControl(snareDecayKnob, "snareDecay", "Decay (ms)");
+    setupControl(snareWoodKnob,  "snareWood",  "Acoustic Wood");
+    setupControl(snareSlapKnob,  "snareSlap",  "Slap Smack");
+    setupControl(snareToneKnob,  "snareTone",  "Noise Filter");
+    setupControl(snareTailKnob,  "snareTail",  "Room Tail");
 
     // 3. MASTER DSP, DUB ECHO & ROOM AMBIENCE CONTROLS (6 Knobs)
     setupControl(roomMixKnob,    "roomMix",    "Room Space");
@@ -210,12 +210,12 @@ void SubdrumProcessorAudioProcessorEditor::setActiveTab(SoundTab tab)
     kickDriveKnob.slider.setVisible(isKick);   kickDriveKnob.label.setVisible(isKick);
 
     const bool isSnare = (activeTab == SoundTab::SnareClap);
-    snarePitchKnob.slider.setVisible(isSnare);   snarePitchKnob.label.setVisible(isSnare);
-    snareDecayKnob.slider.setVisible(isSnare);   snareDecayKnob.label.setVisible(isSnare);
-    snareWoodKnob.slider.setVisible(isSnare);    snareWoodKnob.label.setVisible(isSnare);
-    snareSlapKnob.slider.setVisible(isSnare);    snareSlapKnob.label.setVisible(isSnare);
-    snareSizzleKnob.slider.setVisible(isSnare);  snareSizzleKnob.label.setVisible(isSnare);
-    snareFlamKnob.slider.setVisible(isSnare);    snareFlamKnob.label.setVisible(isSnare);
+    snarePitchKnob.slider.setVisible(isSnare); snarePitchKnob.label.setVisible(isSnare);
+    snareDecayKnob.slider.setVisible(isSnare); snareDecayKnob.label.setVisible(isSnare);
+    snareWoodKnob.slider.setVisible(isSnare);  snareWoodKnob.label.setVisible(isSnare);
+    snareSlapKnob.slider.setVisible(isSnare);  snareSlapKnob.label.setVisible(isSnare);
+    snareToneKnob.slider.setVisible(isSnare);  snareToneKnob.label.setVisible(isSnare);
+    snareTailKnob.slider.setVisible(isSnare);  snareTailKnob.label.setVisible(isSnare);
 
     const bool isMaster = (activeTab == SoundTab::MasterDSP);
     roomMixKnob.slider.setVisible(isMaster);     roomMixKnob.label.setVisible(isMaster);
@@ -585,17 +585,17 @@ void SubdrumProcessorAudioProcessorEditor::resized()
         placeKnob(kickPunchKnob, juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
         placeKnob(kickDriveKnob, juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
-    // BURIAL CLAP / HARD SNARE TAB (6 Knobs: Pitch, Decay, Acoustic Wood, Hard Slap, Air Sizzle, Burial Flam)
+    // ACOUSTIC CLAP TAB (6 Knobs: Pitch, Decay, Acoustic Wood, Slap Smack, Noise Filter, Room Tail)
     else if (activeTab == SoundTab::SnareClap)
     {
         const int numKnobs = 6;
         const int knobW = contentW / numKnobs;
-        placeKnob(snarePitchKnob,  juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareDecayKnob,  juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareWoodKnob,   juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareSlapKnob,   juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareSizzleKnob, juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
-        placeKnob(snareFlamKnob,   juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snarePitchKnob, juce::Rectangle<int>(30 + 0 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareDecayKnob, juce::Rectangle<int>(30 + 1 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareWoodKnob,  juce::Rectangle<int>(30 + 2 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareSlapKnob,  juce::Rectangle<int>(30 + 3 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareToneKnob,  juce::Rectangle<int>(30 + 4 * knobW, knobsAreaTop, knobW, knobsAreaH));
+        placeKnob(snareTailKnob,  juce::Rectangle<int>(30 + 5 * knobW, knobsAreaTop, knobW, knobsAreaH));
     }
     // MASTER DSP, DUB ECHO & ROOM AMBIENCE TAB (6 Knobs: Room Space, Room Size, Dub Echo, Tape Drive, Master Cutoff, Master Gain)
     else if (activeTab == SoundTab::MasterDSP)
