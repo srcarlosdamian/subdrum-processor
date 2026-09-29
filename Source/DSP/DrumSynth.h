@@ -31,10 +31,10 @@ public:
     {
         sampleRate = spec.sampleRate > 0.0 ? spec.sampleRate : 44100.0;
 
-        // Kick Filters
-        kickBeaterFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 3800.0f, 1.2f);
+        // Kick Filters: wideband transient click (up to 14kHz) + deep resonant sub body
+        kickBeaterFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 4800.0f, 0.6f);
         kickBeaterFilter.reset();
-        kickBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 1200.0f, 0.707f);
+        kickBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 1400.0f, 0.707f);
         kickBodyFilter.reset();
 
         // Snare Filters
@@ -316,16 +316,16 @@ public:
         const float snPitchRatio = std::pow(2.0f, snarePitchSemi.load(std::memory_order_relaxed) / 12.0f);
         const float clPitchRatio = std::pow(2.0f, clapPitchSemi.load(std::memory_order_relaxed) / 12.0f);
 
-        // Kick Coefficients
-        const float kDecaySec = (kickDecayMs.load(std::memory_order_relaxed) * 0.001f) * 0.45f * kSpeedFactor;
+        // Kick Coefficients matching physical spectrogram
+        const float kDecaySec = (kickDecayMs.load(std::memory_order_relaxed) * 0.001f) * 0.82f * kSpeedFactor;
         const float kickDecayCoef = std::exp(-1.0f / (juce::jmax(0.005f, kDecaySec) * static_cast<float>(sampleRate)));
-        const float kickPitchDecayCoef = std::exp(-1.0f / ((0.016f * kSpeedFactor) * static_cast<float>(sampleRate)));
-        const float kickBeaterDecayCoef = std::exp(-1.0f / ((0.006f * kSpeedFactor) * static_cast<float>(sampleRate)));
+        const float kickPitchDecayCoef = std::exp(-1.0f / ((0.024f * kSpeedFactor) * static_cast<float>(sampleRate)));
+        const float kickBeaterDecayCoef = std::exp(-1.0f / ((0.009f * kSpeedFactor) * static_cast<float>(sampleRate)));
         const float duckDecayCoef = std::exp(-1.0f / (0.160f * static_cast<float>(sampleRate)));
 
         const float kBase = kickBaseFreq.load(std::memory_order_relaxed) * kPitchRatio;
         const float kSweep = kickSweepDepth.load(std::memory_order_relaxed) * kPitchRatio;
-        const float kDrive = 1.2f + 0.8f * kickDriveAmount.load(std::memory_order_relaxed);
+        const float kDrive = 1.15f + 0.90f * kickDriveAmount.load(std::memory_order_relaxed);
 
         // Snare Coefficients
         const float snDecaySec = (snareDecayMs.load(std::memory_order_relaxed) * 0.001f);
@@ -371,13 +371,14 @@ public:
 
             float synthSample = 0.0f;
 
-            // 1. KICK VOICE
+            // 1. KICK VOICE (Spectrogram: deep sub 54Hz, pitch curve from 230Hz, wide click, 400ms tail)
             if (kickEnv > 1.0e-4f)
             {
                 const float kickFreq = kBase + kSweep * (kickPitchEnv * kickPitchEnv);
                 const float fund = std::sin(kickPhase);
-                const float harm2 = std::sin(kickHarmonicPhase) * 0.35f;
-                const float rawBody = (fund + harm2) * kickEnv;
+                const float harm2 = std::sin(kickHarmonicPhase) * 0.38f;
+                const float harm3 = std::sin(kickHarmonicPhase * 1.5f) * 0.16f;
+                const float rawBody = (fund + harm2 + harm3) * kickEnv;
                 const float saturatedBody = std::tanh(rawBody * kDrive);
                 const float filteredBody = kickBodyFilter.processSample(saturatedBody);
 
@@ -385,7 +386,7 @@ public:
                 if (kickBeaterEnv > 1.0e-3f)
                 {
                     const float noise = nextRandomFloat() * 2.0f - 1.0f;
-                    beaterClick = kickBeaterFilter.processSample(noise) * kickBeaterEnv * 0.75f;
+                    beaterClick = kickBeaterFilter.processSample(noise) * kickBeaterEnv * 0.85f;
                     kickBeaterEnv *= kickBeaterDecayCoef;
                 }
 

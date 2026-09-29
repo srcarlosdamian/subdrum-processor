@@ -115,7 +115,7 @@ void SubdrumProcessorAudioProcessor::initFactoryPresets()
         {
             "01 // 2-Step Solid Suite",
             {
-                { "kickPitch", 0.0f }, { "kickTune", 68.0f }, { "kickSweep", 77.0f }, { "kickDecay", 72.0f }, { "kickPunch", 75.0f }, { "kickDrive", 50.0f },
+                { "kickPitch", 0.0f }, { "kickTune", 54.0f }, { "kickSweep", 175.0f }, { "kickDecay", 175.0f }, { "kickPunch", 85.0f }, { "kickDrive", 60.0f },
                 { "snarePitch", 0.0f }, { "snareDecay", 180.0f }, { "snareSnap", 85.0f }, { "snareTone", 195.0f }, { "snareCrack", 80.0f }, { "snareDrive", 40.0f },
                 { "clapPitch", 0.0f }, { "clapDecay", 180.0f }, { "clapWood", 85.0f }, { "clapSlap", 90.0f }, { "clapTone", 7500.0f }, { "clapTail", 40.0f },
                 { "chatPitch", 0.0f }, { "chatDecay", 45.0f }, { "chatTone", 9500.0f }, { "chatSizzle", 60.0f }, { "chatRes", 2.0f }, { "chatDrive", 30.0f },
@@ -343,11 +343,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout SubdrumProcessorAudioProcess
 
     // --- 1. KICK PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickPitch", 1 }, "Kick Pitch", juce::NormalisableRange<float>(-24.0f, 12.0f, 1.0f), 0.0f, juce::AudioParameterFloatAttributes().withLabel("st")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickTune", 1 }, "Kick Tune", juce::NormalisableRange<float>(40.0f, 100.0f, 0.5f), 68.0f, juce::AudioParameterFloatAttributes().withLabel("Hz")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickSweep", 1 }, "Kick Pitch Drop", juce::NormalisableRange<float>(0.0f, 200.0f, 1.0f), 77.0f, juce::AudioParameterFloatAttributes().withLabel("Hz")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickDecay", 1 }, "Kick Decay", juce::NormalisableRange<float>(20.0f, 250.0f, 1.0f), 72.0f, juce::AudioParameterFloatAttributes().withLabel("ms")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickPunch", 1 }, "Kick Punch", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 75.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickDrive", 1 }, "Kick Drive", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 50.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickTune", 1 }, "Kick Tune", juce::NormalisableRange<float>(35.0f, 100.0f, 0.5f), 54.0f, juce::AudioParameterFloatAttributes().withLabel("Hz")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickSweep", 1 }, "Kick Pitch Drop", juce::NormalisableRange<float>(0.0f, 250.0f, 1.0f), 175.0f, juce::AudioParameterFloatAttributes().withLabel("Hz")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickDecay", 1 }, "Kick Decay", juce::NormalisableRange<float>(20.0f, 400.0f, 1.0f), 175.0f, juce::AudioParameterFloatAttributes().withLabel("ms")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickPunch", 1 }, "Kick Punch", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 85.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "kickDrive", 1 }, "Kick Drive", juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 60.0f, juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // --- 2. SNARE PARAMETERS ---
     params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "snarePitch", 1 }, "Snare Pitch", juce::NormalisableRange<float>(-24.0f, 12.0f, 1.0f), 0.0f, juce::AudioParameterFloatAttributes().withLabel("st")));
