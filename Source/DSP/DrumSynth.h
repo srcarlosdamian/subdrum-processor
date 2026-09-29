@@ -31,10 +31,10 @@ public:
     {
         sampleRate = spec.sampleRate > 0.0 ? spec.sampleRate : 44100.0;
 
-        // Kick Filters: wideband transient click (up to 14kHz) + deep resonant sub body
-        kickBeaterFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 4800.0f, 0.6f);
+        // Kick Filters
+        kickBeaterFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 3800.0f, 1.2f);
         kickBeaterFilter.reset();
-        kickBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 1400.0f, 0.707f);
+        kickBodyFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 1200.0f, 0.707f);
         kickBodyFilter.reset();
 
         // Snare Filters
@@ -64,8 +64,10 @@ public:
         rimSnapFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1680.0f, 3.5f);
         rimSnapFilter.reset();
 
-        // Sub 808 Lowpass Filter
-        subLowPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 320.0f, 0.707f);
+        // Tom / Sub Filters: beater membrane slap + warm tone lowpass
+        subClickFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, 1200.0f, 1.4f);
+        subClickFilter.reset();
+        subLowPass.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 850.0f, 0.707f);
         subLowPass.reset();
 
         // Shaker Filter
@@ -108,10 +110,12 @@ public:
         rimEnv = 0.0f;
         rimPhase = 0.0f;
 
-        // 808 Sub
+        // 7. Tom / Sub
         subEnv = 0.0f;
         subPhase = 0.0f;
+        subHarmonicPhase = 0.0f;
         subPitchEnv = 0.0f;
+        subClickEnv = 0.0f;
 
         // Shaker / Vinyl
         shakerEnv = 0.0f;
@@ -134,6 +138,7 @@ public:
         hatSizzleFilter.reset();
         rimBodyFilter.reset();
         rimSnapFilter.reset();
+        subClickFilter.reset();
         subLowPass.reset();
         shakerFilter.reset();
 
@@ -293,12 +298,14 @@ public:
                 rimEnv = vel * 1.3f;
                 rimPhase = 0.0f;
             }
-            // 7. SUB 808 (Note 48 / Key 'J')
+            // 7. TOM / SUB (Note 48 / Key 'J')
             else if (note == 48)
             {
-                subEnv = vel * 1.4f;
+                subEnv = vel * 1.35f;
                 subPitchEnv = 1.0f;
+                subClickEnv = vel * 1.6f;
                 subPhase = 0.0f;
+                subHarmonicPhase = 0.0f;
             }
             // 8. SHAKER / VINYL (Note 40 / Key 'K')
             else if (note == 40)
@@ -326,16 +333,16 @@ public:
         const float clPitchRatio = std::pow(2.0f, clapPitchSemi.load(std::memory_order_relaxed) / 12.0f);
         const float chPitchRatio = std::pow(2.0f, chatPitchSemi.load(std::memory_order_relaxed) / 12.0f);
 
-        // Kick Coefficients matching physical spectrogram
-        const float kDecaySec = (kickDecayMs.load(std::memory_order_relaxed) * 0.001f) * 0.82f * kSpeedFactor;
+        // Kick Coefficients
+        const float kDecaySec = (kickDecayMs.load(std::memory_order_relaxed) * 0.001f) * 0.45f * kSpeedFactor;
         const float kickDecayCoef = std::exp(-1.0f / (juce::jmax(0.005f, kDecaySec) * static_cast<float>(sampleRate)));
-        const float kickPitchDecayCoef = std::exp(-1.0f / ((0.024f * kSpeedFactor) * static_cast<float>(sampleRate)));
-        const float kickBeaterDecayCoef = std::exp(-1.0f / ((0.009f * kSpeedFactor) * static_cast<float>(sampleRate)));
+        const float kickPitchDecayCoef = std::exp(-1.0f / ((0.016f * kSpeedFactor) * static_cast<float>(sampleRate)));
+        const float kickBeaterDecayCoef = std::exp(-1.0f / ((0.006f * kSpeedFactor) * static_cast<float>(sampleRate)));
         const float duckDecayCoef = std::exp(-1.0f / (0.160f * static_cast<float>(sampleRate)));
 
         const float kBase = kickBaseFreq.load(std::memory_order_relaxed) * kPitchRatio;
         const float kSweep = kickSweepDepth.load(std::memory_order_relaxed) * kPitchRatio;
-        const float kDrive = 1.15f + 0.90f * kickDriveAmount.load(std::memory_order_relaxed);
+        const float kDrive = 1.2f + 0.8f * kickDriveAmount.load(std::memory_order_relaxed);
 
         // Snare Coefficients
         const float snDecaySec = (snareDecayMs.load(std::memory_order_relaxed) * 0.001f);
@@ -361,8 +368,10 @@ public:
         const float chatSizzleDecay = std::exp(-1.0f / (juce::jmax(0.008f, chatDecaySec * 0.38f) * static_cast<float>(sampleRate)));
         const float ohatDecay = std::exp(-1.0f / ((ohatDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
         const float rimDecay  = std::exp(-1.0f / ((rimDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
-        const float subDecay  = std::exp(-1.0f / ((subDecayMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate)));
-        const float subGlide  = std::exp(-1.0f / (0.045f * static_cast<float>(sampleRate)));
+        const float subDecaySec = (subDecayMs.load(std::memory_order_relaxed) * 0.001f);
+        const float subDecay  = std::exp(-1.0f / (juce::jmax(0.02f, subDecaySec * 0.85f) * static_cast<float>(sampleRate)));
+        const float subGlide  = std::exp(-1.0f / (0.028f * static_cast<float>(sampleRate)));
+        const float subClickDecay = std::exp(-1.0f / (0.012f * static_cast<float>(sampleRate)));
 
         // Shaker Attack & Decay
         const float shAttackStep = 1.0f / (juce::jmax(0.001f, shakerAttackMs.load(std::memory_order_relaxed) * 0.001f) * static_cast<float>(sampleRate));
@@ -380,14 +389,13 @@ public:
 
             float synthSample = 0.0f;
 
-            // 1. KICK VOICE (Spectrogram: deep sub 54Hz, pitch curve from 230Hz, wide click, 400ms tail)
+            // 1. KICK VOICE
             if (kickEnv > 1.0e-4f)
             {
                 const float kickFreq = kBase + kSweep * (kickPitchEnv * kickPitchEnv);
                 const float fund = std::sin(kickPhase);
-                const float harm2 = std::sin(kickHarmonicPhase) * 0.38f;
-                const float harm3 = std::sin(kickHarmonicPhase * 1.5f) * 0.16f;
-                const float rawBody = (fund + harm2 + harm3) * kickEnv;
+                const float harm2 = std::sin(kickHarmonicPhase) * 0.35f;
+                const float rawBody = (fund + harm2) * kickEnv;
                 const float saturatedBody = std::tanh(rawBody * kDrive);
                 const float filteredBody = kickBodyFilter.processSample(saturatedBody);
 
@@ -395,7 +403,7 @@ public:
                 if (kickBeaterEnv > 1.0e-3f)
                 {
                     const float noise = nextRandomFloat() * 2.0f - 1.0f;
-                    beaterClick = kickBeaterFilter.processSample(noise) * kickBeaterEnv * 0.85f;
+                    beaterClick = kickBeaterFilter.processSample(noise) * kickBeaterEnv * 0.75f;
                     kickBeaterEnv *= kickBeaterDecayCoef;
                 }
 
@@ -534,25 +542,37 @@ public:
                 rimEnv *= rimDecay;
             }
 
-            // 7. SUB 808 BASS
-            if (subEnv > 1.0e-4f)
+            // 7. TOM / SUB (Calibrated to spectrogram: 96Hz fundamental, 192Hz harmonic, 1200Hz beater slap, 380ms tail)
+            if (subEnv > 1.0e-4f || subClickEnv > 1.0e-4f)
             {
                 const float sBase = subTuneFreq.load(std::memory_order_relaxed);
                 const float sSweep = subSweepDepth.load(std::memory_order_relaxed);
-                const float sFreq = sBase + sSweep * subPitchEnv;
-                const float sDrive = 1.0f + 1.5f * subDriveAmount.load(std::memory_order_relaxed);
+                const float sFreq = sBase + sSweep * (subPitchEnv * subPitchEnv);
+                const float sDrive = 1.0f + 1.2f * subDriveAmount.load(std::memory_order_relaxed);
 
-                const float subSine = std::sin(subPhase);
-                const float subFiltered = subLowPass.processSample(subSine * sDrive);
-                const float subSat = std::tanh(subFiltered);
+                const float subFund = std::sin(subPhase);
+                const float subHarm2 = std::sin(subHarmonicPhase) * 0.32f;
+                const float subHarm3 = std::sin(subHarmonicPhase * 1.5f) * 0.12f;
+                const float tomAcousticBody = (subFund + subHarm2 + subHarm3) * subEnv;
 
-                synthSample += subSat * subEnv * subLevelGain.load(std::memory_order_relaxed);
+                const float beaterNoise = nextRandomFloat() * 2.0f - 1.0f;
+                const float beaterClick = subClickFilter.processSample(beaterNoise) * subClickEnv * 0.75f;
+
+                const float rawTom = (tomAcousticBody + beaterClick) * sDrive;
+                const float tomFiltered = subLowPass.processSample(rawTom);
+                const float tomSat = std::tanh(tomFiltered * 1.25f);
+
+                synthSample += tomSat * subLevelGain.load(std::memory_order_relaxed) * 1.15f;
 
                 subPhase += twoPi * sFreq * samplePeriod;
                 if (subPhase >= twoPi) subPhase -= twoPi;
 
-                subEnv *= subDecay;
+                subHarmonicPhase += twoPi * (sFreq * 2.0f) * samplePeriod;
+                if (subHarmonicPhase >= twoPi) subHarmonicPhase -= twoPi;
+
+                subEnv      *= subDecay;
                 subPitchEnv *= subGlide;
+                subClickEnv *= subClickDecay;
             }
 
             // 8. SHAKER & VINYL CRACKLE
@@ -724,18 +744,21 @@ private:
     juce::dsp::IIR::Filter<float> rimBodyFilter;
     juce::dsp::IIR::Filter<float> rimSnapFilter;
 
-    // 7. Sub 808 State & Parameters
-    std::atomic<float> subTuneFreq { 42.0f };
-    std::atomic<float> subDecayMs { 500.0f };
-    std::atomic<float> subSweepDepth { 40.0f };
-    std::atomic<float> subDriveAmount { 0.45f };
-    std::atomic<float> subCutoffFreq { 320.0f };
+    // 7. Tom / Sub State & Parameters
+    std::atomic<float> subTuneFreq { 96.0f };
+    std::atomic<float> subDecayMs { 380.0f };
+    std::atomic<float> subSweepDepth { 85.0f };
+    std::atomic<float> subDriveAmount { 0.40f };
+    std::atomic<float> subCutoffFreq { 850.0f };
     std::atomic<float> subLevelGain { 1.2f };
 
     float subEnv { 0.0f };
     float subPhase { 0.0f };
+    float subHarmonicPhase { 0.0f };
     float subPitchEnv { 0.0f };
+    float subClickEnv { 0.0f };
     juce::dsp::IIR::Filter<float> subLowPass;
+    juce::dsp::IIR::Filter<float> subClickFilter;
 
     // 8. Shaker / Vinyl State & Parameters
     std::atomic<float> shakerAttackMs { 12.0f };
